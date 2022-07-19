@@ -150,7 +150,7 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
 # save batch & nested corrected matrix for WGCNA and RF
 r.matrix <- r %>% as.matrix()
 r.df <- r %>% as.data.frame()
-saveRDS(r.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/WTN_batch_corr_nested_DGEm.rda")
+saveRDS(r.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTN_batch_corr_nested_DGEm.rda")
 
 
 # ------------------------- #
@@ -187,10 +187,39 @@ res3.df$gene[res3.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(res3.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_res3.rda")
 
 # ------------------------- #
+# nested correction DESeq2
+# ------------------------- #
+myp <- data.frame(id=mys, genotype=factor(myg1, levels=c("WT", "KO")), cond=myg2, batch=batch2, group=myg)
+mm <- model.matrix(~genotype+genotype:batch+genotype:cond, myp)
+
+dds <- DESeqDataSetFromMatrix(DGEm, colData = myp, mm)
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds <- DESeq(dds)
+resultsNames(dds)
+
+# WTm7oe vs WT
+res2 <- results(dds, name = c("genotypeWT.condOE"))
+res2.df <- as.data.frame(res2)
+res2.df$gene <- rownames(res2.df)
+res2.df$WT <- DGEm_normalized_WT
+res2.df$gene[res2.df$gene == "1700020I14Rik"] <- "Cyrano"
+res2.df$gene[res2.df$gene == "C230004F18Rik"] <- "Cdr1os"
+saveRDS(res2.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+
+# KOm7oe vs KO
+res3 <- results(dds, name=c("genotypeKO.condOE"))
+res3.df <- as.data.frame(res3)
+res3.df$gene <- rownames(res3.df)
+res3.df$WT <- DGEm_normalized_WT
+res3.df$gene[res3.df$gene == "1700020I14Rik"] <- "Cyrano"
+res3.df$gene[res3.df$gene == "C230004F18Rik"] <- "Cdr1os"
+saveRDS(res3.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+
+
+# ------------------------- #
 # batch corrected DESeq2
 # ------------------------- #
-
-
 
 dds <- DESeqDataSetFromMatrix(DGEm, colData = myp, design = ~ 0 + group + batchBuch)
 keep <- rowSums(counts(dds)) >= 10
@@ -335,10 +364,10 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
 
 
 # ------------------------- #
-# nested + batch MA plots
+# nested only MA plots
 # ------------------------- #
 
-res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_res2.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
 
 g2 <- target_MA_Plot(res2.df, labels = "log2FC (WTN vs WTN-miR-7oe)")  +
   geom_point(data = res2.df[which(res2.df$gene %in% target_genes & res2.df$padj < 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkorange", size = 3) + 
@@ -357,7 +386,7 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
 
-res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_res3.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
 
 g3 <- target_MA_Plot(res3.df, labels = "log2FC (FullKO vs FullKO-miR-7oe)")  +
   geom_point(data = res3.df[which(res3.df$gene %in% target_genes & res3.df$padj < 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkorange", size = 3) + 

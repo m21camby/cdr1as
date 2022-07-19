@@ -14,15 +14,11 @@ library(cowplot)
 # ------------------------- #
 # data loading
 # ------------------------- #
-# batch corrected data
+# batch OR nested corrected data
 res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
-res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res2.rda")
-res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res3.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
 res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
-
-# nested & batch corrected data
-nested_res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_res2.rda")
-nested_res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_res3.rda")
 
 
 
@@ -37,7 +33,7 @@ mir122target.df <- read.table("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_git
 mir122mirdb.df <- read.csv("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/20220423_mirdb_mir_122_extract.csv", header = TRUE)
 
 # miR-7 target genes (in both DB)
-mir7_genes <- intersect(mir7target.df$gene_id, mir7mirdb.df$X4)
+mir7_genes <- intersect(mir7target.df$V1, mir7mirdb.df$X4)
 mir122_genes <- intersect(mir122target.df$V1, mir122mirdb.df$X4)
 
 
@@ -113,7 +109,7 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
 res2.df$is.target <- rownames(res2.df) %in% mir122_genes
 wilcox.test(log2FoldChange ~ is.target, data = res2.df, alt = "two.sided")
 
-c1 <- cumulative_plot(res2.df, "miR-122-5p targets (", "p-value = 0.7937") + ggtitle("WTN vs WTNm7oe")
+c1 <- cumulative_plot(res2.df, "miR-122-5p targets (", "p-value = 0.6777") + ggtitle("WTN vs WTNm7oe")
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_122_WTNm7oe_WTN.pdf",
        plot = c1,
@@ -140,7 +136,7 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
 res3.df$is.target <- rownames(res3.df) %in% mir122_genes
 wilcox.test(log2FoldChange ~ is.target, data = res3.df, alt = "two.sided")
 
-c1 <- cumulative_plot(res3.df, "miR-122-5p targets (", "p-value = 0.6405") + ggtitle("FullKO vs KOm7oe")
+c1 <- cumulative_plot(res3.df, "miR-122-5p targets (", "p-value = 0.6541") + ggtitle("FullKO vs KOm7oe")
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_122_KOm7oe_KO.pdf",
        plot = c1,
@@ -170,64 +166,6 @@ wilcox.test(log2FoldChange ~ is.target, data = res4.df, alt = "two.sided")
 c1 <- cumulative_plot(res4.df, "miR-122-5p targets (", "p-value = 0.4317") + ggtitle("WTN vs KOm7oe")
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_122_KOm7oe_WTN.pdf",
-       plot = c1,
-       scale = 1, width = 7, height = 5.5, units = "in", device = cairo_pdf,
-       dpi = 300)
-
-
-#----------------------------#
-# batch and nested corrected
-#----------------------------#
-
-#################
-# WT vs WTm7oe miR-7
-#################
-nested_res2.df$is.target <- rownames(nested_res2.df) %in% mir7_genes
-wilcox.test(log2FoldChange ~ is.target, data = nested_res2.df, alt = "two.sided")
-
-c1 <- cumulative_plot(nested_res2.df, "miR-7-5p targets (", "p-value < 2.2e-16") + ggtitle("WTN vs WTNm7oe")
-
-ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_7_WTNm7oe_WTN_nested.pdf",
-       plot = c1,
-       scale = 1, width = 7, height = 5.5, units = "in", device = cairo_pdf,
-       dpi = 300)
-
-#################
-# WT vs WTm7oe miR-122
-#################
-nested_res2.df$is.target <- rownames(nested_res2.df) %in% mir122_genes
-wilcox.test(log2FoldChange ~ is.target, data = nested_res2.df, alt = "two.sided")
-
-c1 <- cumulative_plot(nested_res2.df, "miR-122-5p targets (", "p-value = 0.484") + ggtitle("WTN vs WTNm7oe")
-
-ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_122_WTNm7oe_WTN_nested.pdf",
-       plot = c1,
-       scale = 1, width = 7, height = 5.5, units = "in", device = cairo_pdf,
-       dpi = 300)
-
-
-#################
-# KO vs KOm7oe miR-7
-#################
-nested_res3.df$is.target <- rownames(nested_res3.df) %in% mir7_genes
-wilcox.test(log2FoldChange ~ is.target, data = nested_res3.df, alt = "two.sided")
-
-c1 <- cumulative_plot(nested_res3.df, "miR-7-5p targets (", "p-value < 2.2e-16") + ggtitle("FullKO vs KOm7oe")
-
-ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_7_KOm7oe_KO_nested.pdf",
-       plot = c1,
-       scale = 1, width = 7, height = 5.5, units = "in", device = cairo_pdf,
-       dpi = 300)
-
-#################
-# KO vs KOm7oe miR-122
-#################
-nested_res3.df$is.target <- rownames(nested_res3.df) %in% mir122_genes
-wilcox.test(log2FoldChange ~ is.target, data = nested_res3.df, alt = "two.sided")
-
-c1 <- cumulative_plot(nested_res3.df, "miR-122-5p targets (", "p-value = 0.6541") + ggtitle("FullKO vs KOm7oe")
-
-ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/cumulative_plots_miR_122_KOm7oe_KO_nested.pdf",
        plot = c1,
        scale = 1, width = 7, height = 5.5, units = "in", device = cairo_pdf,
        dpi = 300)
