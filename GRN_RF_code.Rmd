@@ -1,0 +1,395 @@
+---
+title: "GRN_RF_code"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float: false
+    code_folding: hide
+---
+
+```{r message=FALSE ,warning=FALSE}
+.libPaths(c("/data/rajewsky/home/skim/R/usr_lib_Seurat/", "/data/rajewsky/home/skim/R/usr_lib_v4/"))
+#.libPaths()
+unloadNamespace("mgcv")
+unloadNamespace("Matrix")
+
+
+library(ggplot2)
+library(gridExtra)
+library(ggrepel)
+library(dplyr)
+library(cowplot)
+library(paletteer)
+library(stringr)
+library(scales)
+library(readxl)
+library(randomForest)
+library(GGally)
+library(igraph)
+library(paletteer)
+library(stringr)
+library(scales)
+library(tidyr)
+library(readxl)
+library(ggraph)
+```
+
+
+```{r message=FALSE ,warning=FALSE}
+# miR-7 target genes 
+mir7target.df <- read.table("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/TargetScan7.2__miR-7-5p.predicted_targets_lists_without_header.txt")
+# miR-7 targe genes from mirdb
+mir7mirdb.df <- read.csv("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/20220423_mirdb_mir_7_extract.csv", header = TRUE)
+
+# load pheno genes
+cledi_pheno_genes <- read_excel("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/biased_list_of_phenotype_related_genes.xlsx", col_names = FALSE)
+
+# TF genes
+TF_list <- read.csv("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/Mouse_TFs_list.txt", stringsAsFactors = FALSE)
+TF_list[725,1] <- "Auts2"
+colnames(TF_list) <- "TF"
+
+# load pheno genes
+cledi_pheno_genes <- read_excel("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/biased_list_of_phenotype_related_genes.xlsx", col_names = FALSE)
+
+#########################
+# DE data load
+#########################
+res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+
+# up-genes
+set1 <- res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]$gene
+set2 <- res2.df[which(res2.df$log2FoldChange > 0.5 &  res2.df$padj < 0.05), ]$gene
+set3 <- res3.df[which(res3.df$log2FoldChange > 0.5 &  res3.df$padj < 0.05), ]$gene
+set4 <- res4.df[which(res4.df$log2FoldChange > 0.5 &  res4.df$padj < 0.05), ]$gene 
+
+genes1 <- c(set1, set2, set3, set4) %>% unique()
+
+# down-genes
+set5 <- res1.df[which(res1.df$log2FoldChange < -0.5 &  res1.df$padj < 0.05), ]$gene
+set6 <- res2.df[which(res2.df$log2FoldChange < -0.5 &  res2.df$padj < 0.05), ]$gene
+set7 <- res3.df[which(res3.df$log2FoldChange < -0.5 &  res3.df$padj < 0.05), ]$gene
+set8 <- res4.df[which(res4.df$log2FoldChange < -0.5 &  res4.df$padj < 0.05), ]$gene 
+
+genes2 <- c(set5, set6, set7, set8) %>% unique()
+
+
+# DE genes
+DE_genes <- c(genes1, genes2)
+
+# miR-7 target genes (in both DB)
+mir7_genes <- intersect(mir7target.df$V1, mir7mirdb.df$X4)
+
+# pheno type (17 genes)
+# genes in DE
+pheno_genes <- cledi_pheno_genes$...1[cledi_pheno_genes$...1 %in% DE_genes]
+pheno_genes <- pheno_genes[!pheno_genes %in% mir7_genes]
+```
+
+
+
+```{r message=FALSE ,warning=FALSE}
+
+low_count <- data.frame()
+
+for(i in c(1:10)){
+  final_low <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/low/seed_", i,"/low_layer.rda"))
+  final_low$seed <- i
+  low_count <- rbind(low_count, final_low)
+
+  
+}
+
+low_count2 <- low_count %>% dplyr::group_by(target, regulator)%>%
+  dplyr::summarise(count = n())
+
+
+high_count <- data.frame()
+
+for(i in c(1:10)){
+  final_high <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/high/seed_", i,"/high_layer.rda"))
+  final_high$seed <- i
+  high_count <- rbind(high_count, final_high)
+
+  
+}
+
+high_count2 <- high_count %>% dplyr::group_by(target, regulator)%>%
+  dplyr::summarise(count = n())
+
+
+```
+
+```{r message=FALSE ,warning=FALSE}
+disconnetcted_genes <- setdiff(low_count2$regulator, high_count2$target)
+low_count2 <- low_count2 %>% filter(!regulator %in% disconnetcted_genes)
+input <- rbind(low_count2, high_count2)
+input <- input[, c("regulator", "target" , "count")]
+colnames(input) <- c("regulatoryGene", "targetGene", "weight")
+
+input <- input[input$weight > 1, ]
+
+input$weight <- input$weight / 10
+
+
+
+Gsi <- graph.data.frame(input, directed = T)
+Asi <- get.adjacency(Gsi,sparse = F,attr = "weight",type = "both")
+
+g_arasi <- graph.adjacency(Asi,mode = "directed",weighted = T)
+
+```
+
+### miR-7 regulator genes number of edges
+
+```{r message=FALSE ,warning=FALSE}
+table(high_count2[high_count2$count > 1, ]$regulator)
+```
+
+### miR-7 target middle genes number of edges (above)
+
+```{r message=FALSE ,warning=FALSE}
+table(high_count2[high_count2$count > 1, ]$target)
+```
+
+### miR-7 target middle genes number of edges (below)
+
+```{r message=FALSE ,warning=FALSE}
+table(low_count2[low_count2$count > 1, ]$regulator)
+```
+
+### phenotype genes number of edges
+
+```{r message=FALSE ,warning=FALSE}
+table(low_count2[low_count2$count > 1, ]$target)
+```
+
+
+
+
+```{r message=FALSE ,warning=FALSE}
+df <- names(V(g_arasi)) %>% as.data.frame()
+colnames(df) <- "name"
+set.seed(2)
+df$y_coord <- ifelse(df$name %in% pheno_genes, runif(sum(df$name %in% pheno_genes, na.rm = TRUE), min = -1.1 , max = -0.9),
+                   ifelse(df$name %in% mir7_genes, runif(sum(df$name %in% mir7_genes, na.rm = TRUE), min = 0.8 , max = 1.2), 
+                          runif(sum(!df$name %in% c(pheno_genes, mir7_genes), na.rm = TRUE), min = -0.4 , max = 0.4)))
+
+df$x_coord <- 0 
+set.seed(2)
+df$x_coord <- runif(nrow(df), min = -1 , max = 1)
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+ggraph(g_arasi, layout = "manual", x = df[,c("x_coord")],y = df[,"y_coord"]) +
+  geom_node_point( shape = 21, size = 15) +
+  geom_node_text(aes(label = df$name),
+                 family = "serif", repel = FALSE, size = 3.5) +
+  geom_edge_link(arrow = arrow(length = unit(4, 'mm')), aes(width = weight), 
+                   end_cap = circle(3, 'mm'), edge_color = "black", edge_alpha = 0.1) + 
+  scale_edge_width(range = c(0.5, 2.5)) + 
+  #geom_edge_link(aes(edge_colour = factor(input$targetGene))) +  
+  #geom_edge_link0(edge_colour = "black",edge_width = 0.1, edge_alpha = 0.5) + 
+  #scale_fill_manual(values=c("grey66", "#EEB422","#424242"))+
+  #scale_size(range=c(2,5),guide = FALSE)+
+  theme_graph()+
+  theme(legend.position = "bottom")
+
+```
+
+```{r message=FALSE ,warning=FALSE}
+protein_link_sub_1st <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/ext_files/stringdb_data_extract.rda")
+protein_link_sub_1st$link <- paste0(protein_link_sub_1st$gene1, "_", protein_link_sub_1st$gene2)
+
+input$link <- paste0(input$regulatoryGene, "_", input$targetGene)
+input$link_check <- ifelse(input$link %in% protein_link_sub_1st$link, TRUE, FALSE)
+
+
+compg.edges <- as.data.frame(get.edgelist(g_arasi))
+compg.edges$link <- paste0(compg.edges$V1, "_", compg.edges$V2)
+compg.edges$link_check <- ifelse(compg.edges$link %in% protein_link_sub_1st$link, TRUE, FALSE)
+
+compg.nodes = as_data_frame(g_arasi, "vertices")
+
+
+```
+
+### check weight and stringdb link
+
+```{r message=FALSE ,warning=FALSE}
+DT::datatable(input)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+ggraph(g_arasi, layout = "manual", x = df[,c("x_coord")],y = df[,"y_coord"]) +
+  geom_node_point(shape = 21, size = 15)+
+  geom_node_text(aes(label = df$name),
+                 family = "serif", repel = FALSE, size = 3.5) +
+ geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+                   end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges$link_check), width = weight), edge_alpha = 0.2) + 
+  scale_edge_width(range = c(0.5, 2.5)) + 
+  #  geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+  #                  end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges$link_check)), edge_alpha = 0.2) + 
+  # #geom_edge_link(aes(edge_colour = factor(input$link_check))) + 
+  #geom_edge_link0(edge_colour = "black",edge_width = 0.1, edge_alpha = 0.5) + 
+  scale_edge_colour_manual(values = c("grey","#660000")) + 
+  #scale_color_manual(values=c("red","green"))+
+  #scale_size(range=c(2,5),guide = FALSE)+
+  theme_graph()+
+  theme(legend.position = "bottom") 
+
+```
+
+```{r message=FALSE ,warning=FALSE}
+topgo_BP <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/GRN_RF_BP.rda")
+topgo_MF <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/GRN_RF_MF.rda")
+topgo_CC <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/GRN_RF_CC.rda")
+
+```
+
+```{r message=FALSE ,warning=FALSE}
+synaptic_genes <- topgo_BP[topgo_BP$Term %in% "chemical synaptic transmission", ]$genes
+synaptic_genes <- unlist(strsplit(synaptic_genes, ","))
+
+vesicle_genes <- topgo_BP[topgo_BP$Term %in% "vesicle organization", ]$genes
+vesicle_genes <- unlist(strsplit(vesicle_genes, ","))
+
+death_genes <- topgo_BP[topgo_BP$Term %in% "apoptotic process", ]$genes
+death_genes <- unlist(strsplit(death_genes, ","))
+
+common_genes <- intersect(synaptic_genes, c(vesicle_genes, death_genes))
+
+```
+
+```{r message=FALSE ,warning=FALSE}
+synaptic_genes1 <- setdiff(synaptic_genes, c(death_genes, vesicle_genes))
+vesicle_genes1 <- setdiff(vesicle_genes, c(death_genes, synaptic_genes))
+death_genes1 <- setdiff(death_genes, c(synaptic_genes, vesicle_genes))
+
+# identify downstream genes
+synaptic_specific_genes <- input[input$targetGene %in% synaptic_genes1, ]$regulatoryGene %>% unique
+vesicle_specific_genes <- input[input$targetGene %in% vesicle_genes1, ]$regulatoryGene %>% unique
+death_specific_genes <- input[input$targetGene %in% death_genes1, ]$regulatoryGene %>% unique
+
+
+synapatic_final <- c(synaptic_genes1, synaptic_specific_genes) %>% unique
+vesicle_final <- c(vesicle_genes1, vesicle_specific_genes) %>% unique
+death_final <- c(death_genes1, death_specific_genes) %>% unique
+
+set.seed(2)
+df$x_coord <- ifelse(df$name %in% c(common_genes), runif(sum(df$name %in% c(common_genes), na.rm = TRUE), min = -0.2 , max = 0.2),
+                     ifelse(df$name %in% c(synapatic_final, vesicle_final), runif(sum(df$name %in% c(synapatic_final, vesicle_final), na.rm = TRUE), min = -1.2 , max = -0.2),
+                            ifelse(df$name %in% c(death_final), runif(sum(df$name %in% c(death_final), na.rm = TRUE), min = 0.2 , max = 1.2),runif(sum(!df$name %in% c(common_genes, synapatic_final, death_final, vesicle_final), na.rm = TRUE), min = -1.2 , max = 1.2))))
+
+
+df <- df %>% mutate(color = case_when(name %in% common_genes ~ paletteer_d("ggsci::default_nejm")[[4]],
+                                      name %in% synaptic_genes1 ~ paletteer_d("ggsci::default_nejm")[[8]],
+                                      name %in% vesicle_genes1 ~ paletteer_d("ggsci::default_nejm")[[3]],
+                                      name %in% death_genes1 ~ paletteer_d("ggsci::default_nejm")[[2]], 
+                                      !name %in% c(common_genes, synaptic_genes1, death_genes1) ~ paletteer_d("ggsci::default_nejm")[[7]]))
+
+
+# add shape
+df$shape <- ifelse(df$name %in% TF_list$TF, "triangle", "circle")
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+# phenotype genes
+df[df$name %in% "Syt6", ]$x_coord <- -0.9
+df[df$name %in% "Stxbp6", ]$x_coord <- -0.6
+df[df$name %in% "Syt4", ]$x_coord <- -0.4
+df[df$name %in% "Cplx1", ]$x_coord <- -0.3
+df[df$name %in% "Cplx1", ]$y_coord <- -1.15
+df[df$name %in% "Syt1", ]$y_coord <- -1.15
+df[df$name %in% "Unc5b", ]$x_coord <- 0.7
+
+# miR-7 target genes
+df[df$name %in% "Gabra1", ]$y_coord <- 0.9
+df[df$name %in% "Ide", ]$x_coord <- -1
+df[df$name %in% "Vdac1", ]$y_coord <- 1.1
+df[df$name %in% "Zbtb22", ]$y_coord <- 1.15
+df[df$name %in% "Fbxo28", ]$x_coord <- -0.25
+df[df$name %in% "Parp1", ]$x_coord <- 0.4
+df[df$name %in% "Raf1", ]$y_coord <- 0.75
+df[df$name %in% "Fndc4", ]$x_coord <- 0.9
+df[df$name %in% "Iglon5", ]$x_coord <- 1.05
+df[df$name %in% "Slc38a2", ]$y_coord <- 0.75
+df[df$name %in% "Psme3", ]$y_coord <- 0.93
+df[df$name %in% "Dlgap1", ]$x_coord <- -0.3
+
+
+# middle genes
+df[df$name %in% "Igf2r", ]$x_coord <- 0.8
+df[df$name %in% "Pgr", ]$x_coord <- 0.8
+df[df$name %in% "Smad3", ]$x_coord <- 0.4
+df[df$name %in% "Dmrtc1a", ]$y_coord <- -0.25
+df[df$name %in% "Dmrtc1a", ]$x_coord <- 1
+df[df$name %in% "Txndc12", ]$x_coord <- 0.8
+df[df$name %in% "Dlg5", ]$x_coord <- 0.3
+df[df$name %in% "Dlg5", ]$y_coord <- -0.4
+df[df$name %in% "Ipo11", ]$x_coord <- 1.2
+df[df$name %in% "Tmem231", ]$y_coord <- -0.5
+df[df$name %in% "Plat", ]$x_coord <- -1.2
+df[df$name %in% "Plat", ]$y_coord <- 0.3
+df[df$name %in% "Mrps25", ]$y_coord <- -0.35
+df[df$name %in% "Sh3rf3", ]$x_coord <- 0.05
+df[df$name %in% "Sh3rf3", ]$y_coord <- -0.25
+df[df$name %in% "Gad2", ]$y_coord <- -0.4
+df[df$name %in% "Grin2a", ]$y_coord <- 0.1
+df[df$name %in% "Grin2a", ]$x_coord <- -0.05
+df[df$name %in% "mt-Cytb", ]$y_coord <- 0.1
+df[df$name %in% "Usp31", ]$y_coord <- -0.55
+df[df$name %in% "Ackr1", ]$x_coord <- -1.2
+df[df$name %in% "Gm10605", ]$y_coord <- -0.5
+df[df$name %in% "Uhmk1", ]$x_coord <- 0
+df[df$name %in% "Zfp871", ]$y_coord <- 0.5
+df[df$name %in% "Tspan15", ]$x_coord <- -0.4
+df[df$name %in% "Tspan15", ]$y_coord <- 0.45
+df[df$name %in% "Ralgds", ]$x_coord <- -0.33
+df[df$name %in% "Abcg4", ]$x_coord <- -1.1
+df[df$name %in% "Abcg4", ]$y_coord <- 0.4
+df[df$name %in% "Ocm", ]$x_coord <- -0.67
+
+```
+
+### final figure
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+g1 <- ggraph(g_arasi, layout = "manual", x = df[,c("x_coord")],y = df[,"y_coord"]) +
+  geom_node_point(fill = as.factor(df$color), shape = 21, size = 14)+
+  geom_node_text(aes(label = df$name),
+                 family = "serif", repel = FALSE, size = 3.5) +
+ geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+                start_cap = circle(5, 'mm'),
+                   end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges$link_check), width = weight), edge_alpha = 0.2) + 
+  scale_edge_width(range = c(0.5, 3)) + 
+  #  geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+  #                  end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges$link_check)), edge_alpha = 0.2) + 
+  # #geom_edge_link(aes(edge_colour = factor(input$link_check))) + 
+  #geom_edge_link0(edge_colour = "black",edge_width = 0.1, edge_alpha = 0.5) + 
+  scale_edge_colour_manual(values = c("grey","#660000")) + 
+  #scale_color_manual(values=c("red","green"))+
+  #scale_size(range=c(2,5),guide = FALSE)+
+  theme_graph()+
+  theme(legend.position = "bottom", legend.title=element_blank()) 
+
+g1
+
+# ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF.pdf",
+#        plot = g1,
+#        scale = 1, width = 10, height = 8, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+sessionInfo()
+```
+
