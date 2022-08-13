@@ -58,9 +58,13 @@ cledi_pheno_genes <- read_excel("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_g
 # DE data load
 #########################
 res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
+res1.df$exp <- "WTN_KO"
 res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res2.df$exp <- "WTN_WTN_miR7"
 res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+res3.df$exp <- "KO_KO_miR7"
 res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+res4.df$exp <- "KO_WTN_miR7"
 
 # up-genes
 set1 <- res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]$gene
@@ -151,17 +155,211 @@ g_arasi <- graph.adjacency(Asi,mode = "directed",weighted = T)
 table(high_count2[high_count2$count > 1, ]$regulator)
 ```
 
+### miR-7 regulator genes bar plot
+
+```{r message=FALSE ,warning=FALSE}
+miR7_target_genes <- high_count2[high_count2$count > 1, ]$regulator %>% unique()
+
+res.df <- rbind(res1.df, res2.df,res3.df,res4.df)
+
+res_sub <- res.df[res.df$gene %in% miR7_target_genes, ]
+res_sub$sig <- ifelse(res_sub$padj < 0.05, TRUE, FALSE)
+
+bar_plot <- function(df = res1.df, genes = miR7_target_genes){
+  df_sub <- df[df$gene %in% genes, ]
+  df_sub$sig <- ifelse(df_sub$padj < 0.05, TRUE, FALSE)
+  tmp <- df_sub$gene[order(df_sub$log2FoldChange, decreasing = FALSE)]
+  df_sub$gene <- factor(df_sub$gene, levels = tmp)
+  return(df_sub)
+}
+
+res1_sub <- bar_plot(df = res1.df, genes = miR7_target_genes)
+res2_sub <- bar_plot(df = res2.df, genes = miR7_target_genes)
+res3_sub <- bar_plot(df = res3.df, genes = miR7_target_genes)
+res4_sub <- bar_plot(df = res4.df, genes = miR7_target_genes)
+
+
+```
+
+
+
+```{r message=FALSE ,warning=FALSE, fig.width= 15, fig.height= 12}
+# ggplot(data=res_sub, aes(x=gene, y=log2FoldChange, fill=exp)) + 
+#   geom_bar(stat="identity", position=position_dodge()) + theme_cowplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# ggplot(res_sub) + 
+#    geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+# #  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+#   scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = c(0.9, 0.8)) + theme_cowplot() +   
+#   facet_grid(. ~ exp)
+g1 <- ggplot(res1_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#FF0066",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.9, 0.8))  +
+  ggtitle("WTN vs KO")
+
+
+g2 <- ggplot(res2_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.9, 0.8))   +
+  ggtitle("WTN vs  miR-7oe")
+
+g3 <- ggplot(res3_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0099FF",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.9, 0.8)) +
+  scale_alpha_discrete(range = c(1, 0))   +
+  ggtitle("KO vs KO miR-7oe")
+
+
+g4 <- ggplot(res4_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0D47A1",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  ggtitle("WTN vs KO miR-7oe") + 
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.9, 0.8))
+
+c1 <- arrangeGrob(g1, g2, g3, g4, ncol = 2)
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_miR7_bar.pdf",
+       plot = c1,
+       scale = 1, width = 15, height = 12, units = "in", device = cairo_pdf,
+       dpi = 300)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 15, fig.height= 12}
+# ggplot(data=res_sub, aes(x=gene, y=log2FoldChange, fill=exp)) + 
+#   geom_bar(stat="identity", position=position_dodge()) + theme_cowplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# ggplot(res_sub) + 
+#    geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+# #  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+#   scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = c(0.9, 0.8)) + theme_cowplot() +   
+#   facet_grid(. ~ exp)
+g1 <- ggplot(res1_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#FF0066",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))  +
+  ggtitle("WTN vs KO")
+
+
+g2 <- ggplot(res2_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))   +
+  ggtitle("WTN vs  miR-7oe")
+
+g3 <- ggplot(res3_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0099FF",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8)) +
+  scale_alpha_discrete(range = c(1, 0))   +
+  ggtitle("KO vs KO miR-7oe")
+
+
+g4 <- ggplot(res4_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0D47A1",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  ggtitle("WTN vs KO miR-7oe") + 
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))
+
+
+
+c1 <- arrangeGrob(g1, g2, g3, g4, ncol = 2)
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_miR7_bar.pdf",
+       plot = c1,
+       scale = 1, width = 15, height = 12, units = "in", device = cairo_pdf,
+       dpi = 300)
+```
+
+
 ### miR-7 target middle genes number of edges (above)
 
 ```{r message=FALSE ,warning=FALSE}
 table(high_count2[high_count2$count > 1, ]$target)
 ```
 
+### middle genes bar plot
+
+```{r message=FALSE ,warning=FALSE}
+middle_genes <- high_count2[high_count2$count > 1, ]$target %>% unique()
+
+
+
+res1_sub <- bar_plot(df = res1.df, genes = middle_genes)
+res2_sub <- bar_plot(df = res2.df, genes = middle_genes)
+res3_sub <- bar_plot(df = res3.df, genes = middle_genes)
+res4_sub <- bar_plot(df = res4.df, genes = middle_genes)
+
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 15, fig.height= 12}
+
+g1 <- ggplot(res1_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#FF0066",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))  +
+  ggtitle("WTN vs KO")
+
+
+g2 <- ggplot(res2_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))   +
+  ggtitle("WTN vs  miR-7oe")
+
+g3 <- ggplot(res3_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0099FF",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.2)) +
+  #scale_alpha_discrete(range = c(1, 0))   +
+  ggtitle("KO vs KO miR-7oe")
+
+
+g4 <- ggplot(res4_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0D47A1",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  ggtitle("WTN vs KO miR-7oe") + 
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.2))
+
+grid.arrange(g1, g2, g3, g4, ncol = 2)
+
+c1 <- arrangeGrob(g1, g2, g3, g4, ncol = 2)
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_middle_bar.pdf",
+       plot = c1,
+       scale = 1, width = 15, height = 12, units = "in", device = cairo_pdf,
+       dpi = 300)
+```
+
+
 ### miR-7 target middle genes number of edges (below)
 
 ```{r message=FALSE ,warning=FALSE}
 table(low_count2[low_count2$count > 1, ]$regulator)
 ```
+
+
+
+
 
 ### phenotype genes number of edges
 
@@ -170,6 +368,63 @@ table(low_count2[low_count2$count > 1, ]$target)
 ```
 
 
+### phenotype genes bar plot
+
+```{r message=FALSE ,warning=FALSE}
+pheno_genes <- low_count2[low_count2$count > 1, ]$target %>% unique()
+
+
+
+res1_sub <- bar_plot(df = res1.df, genes = pheno_genes)
+res2_sub <- bar_plot(df = res2.df, genes = pheno_genes)
+res3_sub <- bar_plot(df = res3.df, genes = pheno_genes)
+res4_sub <- bar_plot(df = res4.df, genes = pheno_genes)
+
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 15, fig.height= 12}
+
+g1 <- ggplot(res1_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#FF0066",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))  +
+  ggtitle("WTN vs KO")
+
+
+g2 <- ggplot(res2_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#880E4F",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.8))   +
+  ggtitle("WTN vs  miR-7oe")
+
+g3 <- ggplot(res3_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0099FF",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(),axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.2)) +
+  #scale_alpha_discrete(range = c(1, 0))   +
+  ggtitle("KO vs KO miR-7oe")
+
+
+g4 <- ggplot(res4_sub) + 
+   geom_bar(mapping = aes(x = gene, y = log2FoldChange, alpha= sig), fill = "#0D47A1",stat = "identity", position=position_dodge()) +
+#  geom_point(mapping = aes(x = gene, y = (count) / 2000 , shape=exp, color=exp)) +
+  scale_y_continuous(name = expression("log2FC"), limits = c(-2, 2)) + theme_cowplot() +
+  ggtitle("WTN vs KO miR-7oe") + 
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, hjust = 1), legend.position = c(0.8, 0.2))
+
+grid.arrange(g1, g2, g3, g4, ncol = 2)
+
+c1 <- arrangeGrob(g1, g2, g3, g4, ncol = 2)
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_pheno_bar.pdf",
+       plot = c1,
+       scale = 1, width = 15, height = 12, units = "in", device = cairo_pdf,
+       dpi = 300)
+```
 
 
 ```{r message=FALSE ,warning=FALSE}
@@ -388,6 +643,131 @@ g1
 #        dpi = 300)
 
 ```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+gene_qc <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/low/seed_1/", pheno_genes[1] ,"/", pheno_genes[1], "_evaluation.rda")) %>% as.data.frame
+gene_qc$gene <- pheno_genes[1]
+gene_qc$number <- rownames(gene_qc)
+
+for(i in pheno_genes[c(2:15)]){
+  #print(i)
+  # assign(paste("gene", i, sep = "_"),
+  #        readRDS(paste0("/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/DESeq2_and_RF_code/low/",i ,"/",i, "_evaluation.rda")) %>% as.data.frame)
+  gene_qc2 <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/low/seed_1/", i ,"/", i, "_evaluation.rda")) %>% as.data.frame
+  gene_qc2$gene <- i
+  gene_qc2$number <- rownames(gene_qc2)
+  gene_qc <- rbind(gene_qc, gene_qc2)  
+  
+}
+
+colnames(gene_qc) <- c("RMSE", "Cosine_simialrity", "gene", "number")
+
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+gene_qc <- gene_qc %>%
+  group_by(gene) %>%
+  mutate(outlier = ifelse(is_outlier(RMSE), RMSE, as.numeric(NA)))
+
+gene_qc$outlier <- ifelse(is.na(gene_qc$outlier), NA, gene_qc$number)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+g1 <- ggplot(gene_qc, aes(x = gene, y = RMSE)) + geom_boxplot() + theme_cowplot() + 
+  theme(axis.title.x = element_blank()) + ylim(c(0,1))
+g1
+
+# ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_pheno_RMSE.pdf",
+#        plot = g1,
+#        scale = 1, width = 11, height = 7, units = "in", device = cairo_pdf,
+#        dpi = 300)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+gene_qc <- gene_qc %>%
+  group_by(gene) %>%
+  mutate(outlier = ifelse(is_outlier(Cosine_simialrity), Cosine_simialrity, as.numeric(NA)))
+
+gene_qc$outlier <- ifelse(is.na(gene_qc$outlier), NA, gene_qc$number)
+g1 <- ggplot(gene_qc, aes(x = gene, y = Cosine_simialrity)) + geom_boxplot() + theme_cowplot() + theme(axis.title.x = element_blank())
+g1
+
+# ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_pheno_Cosine.pdf",
+#        plot = g1,
+#        scale = 1, width = 11, height = 7, units = "in", device = cairo_pdf,
+#        dpi = 300)
+```
+
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+target_genes <- list.dirs(path = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/high/seed_1/", full.names = TRUE, recursive = TRUE)
+target_genes <- target_genes[2:37]
+target_genes <- str_replace(target_genes, "/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/high/seed_1//", "")
+
+
+gene_qc <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/high/seed_1/", target_genes[1] ,"/", target_genes[1], "_evaluation.rda")) %>% as.data.frame
+gene_qc$gene <- target_genes[1]
+gene_qc$number <- rownames(gene_qc)
+
+for(i in target_genes[c(2:36)]){
+  #print(i)
+  # assign(paste("gene", i, sep = "_"),
+  #        readRDS(paste0("/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/DESeq2_and_RF_code/low/",i ,"/",i, "_evaluation.rda")) %>% as.data.frame)
+  gene_qc2 <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/high/seed_1/", i ,"/", i, "_evaluation.rda")) %>% as.data.frame
+  gene_qc2$gene <- i
+  gene_qc2$number <- rownames(gene_qc2)
+  gene_qc <- rbind(gene_qc, gene_qc2)  
+  
+}
+
+colnames(gene_qc) <- c("RMSE", "Cosine_simialrity", "gene", "number")
+
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+gene_qc <- gene_qc %>%
+  group_by(gene) %>%
+  mutate(outlier = ifelse(is_outlier(RMSE), RMSE, as.numeric(NA)))
+
+gene_qc$outlier <- ifelse(is.na(gene_qc$outlier), NA, gene_qc$number)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+g1 <- ggplot(gene_qc, aes(x = gene, y = RMSE)) + geom_boxplot() + theme_cowplot() + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, vjust = 0)) + ylim(c(0,1))
+g1
+
+# ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_middle_RMSE.pdf",
+#        plot = g1,
+#        scale = 1, width = 11, height = 7, units = "in", device = cairo_pdf,
+#        dpi = 300)
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+gene_qc <- gene_qc %>%
+  group_by(gene) %>%
+  mutate(outlier = ifelse(is_outlier(Cosine_simialrity), Cosine_simialrity, as.numeric(NA)))
+
+gene_qc$outlier <- ifelse(is.na(gene_qc$outlier), NA, gene_qc$number)
+g1 <- ggplot(gene_qc, aes(x = gene, y = Cosine_simialrity)) + geom_boxplot() + theme_cowplot() + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, vjust = 0)) + ylim(c(0,1))
+g1
+
+# ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/GRN_RF_middle_Cosine.pdf",
+#        plot = g1,
+#        scale = 1, width = 11, height = 7, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+
+
+```
+
 
 ```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
 sessionInfo()
