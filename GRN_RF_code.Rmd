@@ -102,7 +102,7 @@ pheno_genes <- pheno_genes[!pheno_genes %in% mir7_genes]
 low_count <- data.frame()
 
 for(i in c(1:10)){
-  final_low <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/low/seed_", i,"/low_layer.rda"))
+  final_low <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/low/seed_", i,"/low_layer.rda"))
   final_low$seed <- i
   low_count <- rbind(low_count, final_low)
 
@@ -116,7 +116,7 @@ low_count2 <- low_count %>% dplyr::group_by(target, regulator)%>%
 high_count <- data.frame()
 
 for(i in c(1:10)){
-  final_high <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/GRN_RF/high/seed_", i,"/high_layer.rda"))
+  final_high <- readRDS(paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes/GRN_RF/high/seed_", i,"/high_layer.rda"))
   final_high$seed <- i
   high_count <- rbind(high_count, final_high)
 
@@ -764,9 +764,57 @@ g1
 ```
 
 ```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+Interesting_gene <- c("Dlgap1")
 
+Interesting_gene_df <- input %>% filter(regulatoryGene %in% c("Dlgap1") | targetGene %in% c("Dlgap1"))
+
+Interesting_gene_df$regulatoryGene <- Interesting_gene_df$regulatoryGene %>% as.character()
+Interesting_gene_df$targetGene <- Interesting_gene_df$targetGene %>% as.character()
+
+Interesting_gene2 <- c(Interesting_gene_df$regulatoryGene, Interesting_gene_df$targetGene)
+
+Interesting_input <- input %>% filter(regulatoryGene %in% Interesting_gene2)
+
+edge_listsi <- Interesting_input
+Gsi <- graph.data.frame(edge_listsi,directed = T)
+Asi <- get.adjacency(Gsi,sparse = F,attr = "weight",type = "both")
+
+g_arasi2 <- graph.adjacency(Asi,mode = "directed",weighted = T)
+
+df_sub <- df[df$name %in% c(Interesting_input$targetGene, Interesting_input$regulatoryGene), ]
 
 ```
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+
+compg.edges_sub <- compg.edges[compg.edges$V1 %in% df_sub$name, ]
+
+```
+
+
+```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}
+g1 <- ggraph(g_arasi2, layout = "manual", x = df_sub[,c("x_coord")],y = df_sub[,"y_coord"]) +
+  geom_node_point(fill = as.factor(df_sub$color), shape = 21, size = 14)+
+  geom_node_text(aes(label = df_sub$name),
+                 family = "serif", repel = FALSE, size = 3.5) +
+ geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+                start_cap = circle(5, 'mm'),
+                   end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges_sub$link_check), width = weight), edge_alpha = 0.2) + 
+  scale_edge_width(range = c(0.5, 3)) + 
+  #  geom_edge_link(arrow = arrow(length = unit(4, 'mm')), 
+  #                  end_cap = circle(5, 'mm'), aes(edge_color = factor(compg.edges$link_check)), edge_alpha = 0.2) + 
+  # #geom_edge_link(aes(edge_colour = factor(input$link_check))) + 
+  #geom_edge_link0(edge_colour = "black",edge_width = 0.1, edge_alpha = 0.5) + 
+  scale_edge_colour_manual(values = c("grey","#660000")) + 
+  #scale_color_manual(values=c("red","green"))+
+  #scale_size(range=c(2,5),guide = FALSE)+
+  theme_graph()+
+  theme(legend.position = "bottom", legend.title=element_blank()) 
+
+g1
+
+```
+
 
 
 ```{r message=FALSE ,warning=FALSE, fig.width= 10, fig.height= 7}

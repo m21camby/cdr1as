@@ -40,7 +40,8 @@ res4_bp_down <- res4_bp_down[which(res4_bp_down$p.value_elim < 0.05 & res4_bp_do
 Terms <- c("innate immune response", 'positive regulation of secretion by cell',
            "extracellular matrix organization", "regulation of axonogenesis",
            "G protein-coupled receptor signaling pathway", "positive regulation of lipid transport",
-           "regulation of glucose transmembrane transport", "SMAD protein signal transduction",
+           "regulation of glucose transmembrane transport", "histone acetylation",
+           "SMAD protein signal transduction",
            "regulated exocytosis", "regulation of calcium ion-dependent exocytosis",
            "behavioral fear response", "startle response", 
            "regulation of postsynaptic membrane potential","regulation of synaptic transmission, glutamatergic", "regulation of synaptic transmission, GABAergic")
@@ -97,10 +98,10 @@ GO.df$Term <- factor(GO.df$Term, levels = rev(c(Terms[1],
                                             Terms[2],
                                             Terms[5],
                                             Terms[6],
-                                            Terms[7],
-                                            Terms[8],
-                                            Terms[10],
-                                            Terms[c(11,12,13,14,15, 9)])))
+                                            Terms[7], Terms[8],
+                                            Terms[9],
+                                            Terms[11],
+                                            Terms[c(10,12,13,14,15,16)])))
 
 
 
@@ -130,8 +131,8 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
 # ------------------------- #
 # heatmap
 # ------------------------- #
-Terms2 <- c(Terms[8], Terms[10],
-           Terms[7], Terms[c(11,12,14,9)])
+Terms2 <- c(Terms[9], Terms[11],
+           Terms[7], Terms[c(12,13,15,10)])
 
 
 extract_genes <- function(term = "startle response"){
@@ -199,6 +200,10 @@ ZS.df2$GO <- factor(ZS.df2$GO, levels = c("SMAD protein \nsignal \ntransduction"
                                           "regulation of \nsynaptic \ntransmission, \nglutamatergic",
                                           "regulated \nexocytosis"))
 
+# remove Mir7-1
+ZS.df2 <- ZS.df2[!ZS.df2$gene %in% "Mir7-1", ]
+
+
 g2 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score)) +
   geom_tile() + 
   #scale_x_discrete(expand = c(0,0)) + 
@@ -212,8 +217,8 @@ g2 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score))
                                                                                                     axis.ticks = element_line(color = "white"),
                                                                                                     legend.title = element_text(size = 11, color = "black"),
                                                                                                     legend.text = element_text(size = 11, color = "black"),
-                                                                                                    panel.spacing.x = unit(0, "lines"), 
-                                                                                                    panel.spacing.y = unit(0, "lines"), 
+                                                                                                    panel.spacing.x = unit(0.05, "lines"), # change to 0.05 as Cledi asked for space
+                                                                                                    panel.spacing.y = unit(0.05, "lines"), # change to 0.05 as Cledi asked for space
                                                                                                     panel.margin= unit(c(0), "lines"), 
                                                                                                     plot.margin = margin(0, 0, 0, 0, "cm"),
                                                                                                     strip.background = element_blank(),
@@ -222,6 +227,7 @@ g2 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score))
   scale_fill_gradientn("z-score", colours = c(rev(paletteer_d("ggsci::light_blue_material")), paletteer_d("ggsci::orange_material")), limits = c(-1.5, 1.5), oob=squish) +
   #scale_fill_gradientn(colours = cols, limits = c(-2, 2), oob=squish) + 
   facet_grid(exp ~ GO, scales = "free", space = "free", switch = 'x')
+  
 g2
 
 

@@ -57,6 +57,9 @@ resultsNames(ds)
 # calculated WT counts
 DGEm_normalized <- counts(ds, normalized=T) %>% as.data.frame
 DGEm_normalized_WT <- DGEm_normalized[,c(1:3)] %>% rowMeans
+saveRDS(DGEm_normalized, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTJ_nested_normalized_DGEm.rda")
+
+
 
 # ---------------------------------- #
 # PCA
@@ -106,6 +109,12 @@ vsd <- varianceStabilizingTransformation(ds)
 r <- removeBatchEffect(CountsNew, batch=individual.nested, design=m1)
 vsd2 <- vsd
 assay(vsd2) <- r
+# save batch & nested corrected matrix for WGCNA and RF
+r.matrix <- r %>% as.matrix()
+r.df <- r %>% as.data.frame()
+saveRDS(r.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTJ_nested_DGEm.rda")
+
+
 
 vsd2$group <- group
 p2 <- plotPCA(vsd2, intgroup = "group", returnData = TRUE)
@@ -131,6 +140,8 @@ df2 <- mcols(result2) %>% as.data.frame()
 result2.df$gene[result2.df$gene == "1700020I14Rik"] <- "Cyrano"
 result2.df$gene[result2.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(result2.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res2.rda")
+result2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res2.rda")
+write.csv(result2.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res2.csv")
 
 
 
@@ -145,6 +156,8 @@ result3.df$WT <- DGEm_normalized_WT
 result3.df$gene[result3.df$gene == "1700020I14Rik"] <- "Cyrano"
 result3.df$gene[result3.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(result3.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res3.rda")
+result3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res3.rda")
+write.csv(result3.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res3.csv")
 
 
 
@@ -173,6 +186,8 @@ result1.df$gene[result1.df$gene == "C230004F18Rik"] <- "Cdr1os"
 # check reference level
 df <- mcols(result1) %>% as.data.frame()
 saveRDS(result1.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res1.rda")
+result1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res1.rda")
+write.csv(result1.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res1.csv")
 
 # WT vs KOm7oe
 result4 <- results(ds, name = "expSSKOm7oe")
@@ -182,6 +197,8 @@ result4.df$WT <- DGEm_normalized_WT
 result4.df$gene[result4.df$gene == "1700020I14Rik"] <- "Cyrano"
 result4.df$gene[result4.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(result4.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res4.rda")
+result4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res4.rda")
+write.csv(result4.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res4.csv")
 
 # ---------------------------------- #
 # MA plots

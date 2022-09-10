@@ -135,6 +135,7 @@ vsd <- vst(t(Counts[, keep]), blind = F)
 CountsNew <- vsd
 vsd <- varianceStabilizingTransformation(dds3)
 r <- removeBatchEffect(CountsNew, batch=batch2, batch2=batch, design=mm2)
+#saveRDS(r, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_nested_corrected_DGEm.rda")
 vsd2 <- vsd
 assay(vsd2) <- r
 plotPCA(vsd2, intgroup = "group")
@@ -167,6 +168,8 @@ resultsNames(dds)
 
 DGEm_normalized <- counts(dds, normalized=T) %>% as.data.frame
 DGEm_normalized_WT <- DGEm_normalized[,c(1:4)] %>% rowMeans
+saveRDS(DGEm_normalized, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTN_batch_corr_nested_normalized_DGEm.rda")
+
 
 # WTm7oe vs WT
 res2 <- results(dds, list( c("genotypeWT.condOE","genotypeWT") ))

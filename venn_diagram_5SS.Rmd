@@ -1,0 +1,348 @@
+---
+title: "venn diagram genes 5SSKO"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float: false
+    code_folding: hide
+---
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+.libPaths(c("/data/rajewsky/home/skim/R/usr_lib_Seurat/", "/data/rajewsky/home/skim/R/usr_lib_v4/"))
+#.libPaths()
+unloadNamespace("mgcv")
+unloadNamespace("Matrix")
+
+library(WGCNA)
+library(flashClust)
+library(DESeq2)
+library(genefilter)
+library(ggplot2)
+library(plotly)
+library(gridExtra)
+library(ggrepel)
+library(dplyr)
+library(cowplot)
+library(DT)
+library(bnlearn)
+library(Rgraphviz)
+library(gplots)
+library(DT)
+library(GGally)
+library(penalized)
+library(visNetwork)
+#BiocManager::install("clusterProfiler", lib = "/data/rajewsky/home/skim/R/usr_lib_v4/")
+#library(clusterProfiler)
+library(pcaExplorer)
+#BiocManager::install("pcaExplorer", lib = "/data/rajewsky/home/skim/R/usr_lib_v4/")
+library(topGO)
+library(igraph)
+library(paletteer)
+library(stringr)
+library(devtools)
+#library(limmaDE2)
+library(scales)
+library(RColorBrewer)
+library(VennDiagram)
+library(ggvenn)
+library(tidyr)
+library(readxl)
+```
+
+```{r}
+library(clusterProfiler)
+
+#########################
+# informative data load
+#########################
+
+DGEm_normalized <- readRDS(file = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/DGE_matrix_normalized_nested.rda")
+
+# miR-7 target genes 
+mir7target.df <- read.table("/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/R_Scripts/external_files/TargetScan7.2__miR-7-5p.predicted_targets_lists_without_header.txt")
+
+# load pheno genes
+cledi_pheno_genes <- read_excel("/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/R_Scripts/external_files_2nd/biased_list_of_phenotype_related_genes.xlsx", col_names = FALSE)
+
+# TF genes
+TF_list <- read.csv("/data/rajewsky/projects/cdr1as_ko_snRNA/3rd_sequencing_run/pyscenic/Mouse_TFs_list.txt", stringsAsFactors = FALSE)
+TF_list[725,1] <- "Auts2"
+colnames(TF_list) <- "TF"
+
+#########################
+# DE data load
+#########################
+
+res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res1.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res2.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_nested_corrected_res3.rda")
+res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTJ_5SS_res4.rda")
+
+
+# up-genes
+set1 <- res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]$gene
+set2 <- res2.df[which(res2.df$log2FoldChange > 0.5 &  res2.df$padj < 0.05), ]$gene
+set3 <- res3.df[which(res3.df$log2FoldChange > 0.5 &  res3.df$padj < 0.05), ]$gene
+set4 <- res4.df[which(res4.df$log2FoldChange > 0.5 &  res4.df$padj < 0.05), ]$gene 
+
+genes1 <- c(set1, set2, set3, set4) %>% unique()
+
+# down-genes
+set5 <- res1.df[which(res1.df$log2FoldChange < -0.5 &  res1.df$padj < 0.05), ]$gene
+set6 <- res2.df[which(res2.df$log2FoldChange < -0.5 &  res2.df$padj < 0.05), ]$gene
+set7 <- res3.df[which(res3.df$log2FoldChange < -0.5 &  res3.df$padj < 0.05), ]$gene
+set8 <- res4.df[which(res4.df$log2FoldChange < -0.5 &  res4.df$padj < 0.05), ]$gene 
+
+genes2 <- c(set5, set6, set7, set8) %>% unique()
+
+# list of DE genes by experiment
+Cdr1as_DE_genes <- c(set1, set5)
+WT_miR7_DE_genes <- c(set2, set6)
+KO_miR7_DE_genes <- c(set3, set7)
+KO_WT_miR7_DE_genes <- c(set4, set8)
+
+
+all_genes <- c(genes1, genes2) %>% unique()
+# genes exist in both up- and down-
+intersect(genes1, genes2)
+
+genes.df <- data.frame(gene = all_genes)
+         
+```
+
+## 1. up
+
+```{r warning=FALSE, message=FALSE, fig.height=15, fig.width=20}
+x <- list(
+  KO_vs_WT = res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]$gene,
+  WTm7oe_vs_WT = res2.df[which(res2.df$log2FoldChange > 0.5 &  res2.df$padj < 0.05), ]$gene,
+  KOm7oe_vs_KO = res3.df[which(res3.df$log2FoldChange > 0.5 &  res3.df$padj < 0.05), ]$gene,
+  KOm7oe_vs_WT = res4.df[which(res4.df$log2FoldChange > 0.5 &  res4.df$padj < 0.05), ]$gene
+  )
+
+
+#x <- list(set1, set2, set3, set4)
+
+g1 <- ggvenn(
+  x, 
+  stroke_linetype = 1, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 1, set_name_size = 9, text_size = 12
+  ) + 
+  theme(plot.margin=unit(c(0,0,0,0),"cm"))
+
+# ggsave(filename = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/venn_diagram_up_all.pdf",
+#        plot = g1,
+#        scale = 1, width = 20, height = 15, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+g1
+```
+
+### all expressed 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(intersect, list(set1,set2,set3, set4)) 
+```
+
+### specific KO vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set1,set2,set3, set4)) 
+```
+
+### specific WTm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set2,set1,set3, set4)) 
+```
+
+### specific KOm7oe vs KO
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set3,set1,set2, set4)) 
+```
+
+### specific KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set4,set1,set2, set3)) 
+```
+
+### co-exp KOm7oe vs KO & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set4, set3))
+list2 <- Reduce(intersect, list(set4, set2))
+list3 <- Reduce(intersect, list(set4, set1))
+
+list <- list1[!list1 %in% c(list2, list3)]
+list
+```
+
+### co-exp WTm7oe vs WT & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set4, set3))
+list2 <- Reduce(intersect, list(set4, set2))
+list3 <- Reduce(intersect, list(set4, set1))
+
+list <- list2[!list2 %in% c(list1, list3)]
+list
+```
+
+### co-exp WTm7oe vs WT & KOm7oe vs WT & KOm7oe vs KO
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set4, set3, set2))
+list2 <- Reduce(intersect, list(set4, set1))
+
+list <- list1[!list1 %in% c(list2)]
+list
+```
+
+### co-exp specific KO vs WT & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set4, set1))
+list2 <- Reduce(intersect, list(set4, set2, set1))
+list <- list1[!list1 %in% c(list2)]
+list
+```
+
+### co-exp specific KO vs WT & KOm7oe vs WT & KO vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set4, set2, set1))
+list2 <- Reduce(intersect, list(set3, set2, set1))
+list <- list1[!list1 %in% c(list2)]
+list
+```
+
+### co-exp specific KOm7oe vs KO & WTm7oe vs WT 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set3, set2))
+#list2 <- Reduce(intersect, list(set4, set1))
+list <- list1[!list1 %in% c(set4, set1)]
+list
+```
+
+
+## 2. down
+
+```{r warning=FALSE, message=FALSE, fig.height=15, fig.width=20}
+x <- list(
+  KO_vs_WT = res1.df[which(res1.df$log2FoldChange < -0.5 &  res1.df$padj < 0.05), ]$gene,
+  WTm7oe_vs_WT = res2.df[which(res2.df$log2FoldChange < -0.5 &  res2.df$padj < 0.05), ]$gene,
+  KOm7oe_vs_KO = res3.df[which(res3.df$log2FoldChange < -0.5 &  res3.df$padj < 0.05), ]$gene,
+  KOm7oe_vs_WT = res4.df[which(res4.df$log2FoldChange < -0.5 &  res4.df$padj < 0.05), ]$gene
+  )
+
+
+#x <- list(set1, set2, set3, set4)
+
+g1 <- ggvenn(
+  x, 
+  stroke_linetype = 1, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 1, set_name_size = 9, text_size = 12
+  ) + 
+  theme(plot.margin=unit(c(0,0,0,0),"cm"))
+g1
+# ggsave(filename = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/venn_diagram_up_all.pdf",
+#        plot = g1,
+#        scale = 1, width = 20, height = 15, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+### specific KO vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set5,set6,set7, set8)) 
+```
+
+### specific WTm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set6,set5,set7, set8)) 
+```
+
+### specific KOm7oe vs KO
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set7,set5,set6, set8)) 
+```
+
+### specific KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Reduce(setdiff, list(set8,set5,set6, set7)) 
+```
+
+### co-exp KOm7oe vs KO & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set8, set7))
+list2 <- Reduce(intersect, list(set8, set6))
+list3 <- Reduce(intersect, list(set8, set5))
+
+list <- list1[!list1 %in% c(list2, list3)]
+list
+```
+
+### co-exp WTm7oe vs WT & KOm7oe vs WT & KOm7oe vs KO
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set8, set7, set6))
+list2 <- Reduce(intersect, list(set8, set5))
+
+list <- list1[!list1 %in% c(list2)]
+list
+```
+
+### co-exp WTm7oe vs WT & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set8, set6, set5))
+list <- list1[!list1 %in% c(set7)]
+list
+```
+
+### co-exp WTm7oe vs WT & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set8, set6))
+list <- list1[!list1 %in% c(set5, set7)]
+list
+```
+
+### co-exp specific KO vs WT & KOm7oe vs WT
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set8, set5))
+list2 <- Reduce(intersect, list(set8, set6, set5))
+list <- list1[!list1 %in% c(list2)]
+list
+```
+
+### co-exp specific KOm7oe vs KO & WTm7oe vs WT 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+list1 <- Reduce(intersect, list(set7, set6))
+#list2 <- Reduce(intersect, list(set4, set1))
+list <- list1[!list1 %in% c(set8, set5)]
+list
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+sessionInfo()
+```
+
