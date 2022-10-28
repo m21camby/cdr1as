@@ -15,8 +15,11 @@ library(scales)
 
 cor_mat <- readRDS("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTN_batch_corr_nested_DGEm.rda")
 
+# data loading (BP)
+
 res1_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_BP.rda"))
 res1_bp_up <- res1_bp_up[which(res1_bp_up$p.value_elim < 0.05 & res1_bp_up$Annotated < 1000 & res1_bp_up$Annotated > 30), ] 
+
 res1_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_BP.rda"))
 res1_bp_down <- res1_bp_down[which(res1_bp_down$p.value_elim < 0.05 & res1_bp_down$Annotated < 1000 & res1_bp_down$Annotated > 30), ] 
 
@@ -235,3 +238,56 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        plot = g2,
        scale = 1, width = 11, height = 4.5, units = "in", device = cairo_pdf,
        dpi = 300)
+
+
+# data loading (CC, MF)
+res1_cc_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_CC.rda"))
+res1_cc_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_CC.rda"))
+res2_cc_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_CC.rda"))
+res2_cc_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_CC.rda"))
+res3_cc_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_CC.rda"))
+res3_cc_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_CC.rda"))
+res4_cc_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_CC.rda"))
+res4_cc_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_CC.rda"))
+
+res1_mf_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_MF.rda"))
+res1_mf_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_MF.rda"))
+res2_mf_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_MF.rda"))
+res2_mf_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_MF.rda"))
+res3_mf_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_MF.rda"))
+res3_mf_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_MF.rda"))
+res4_mf_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_MF.rda"))
+res4_mf_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_MF.rda"))
+
+
+# save as csv
+
+#write.csv(res1_bp_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_BP.csv"))
+#write.csv(res1_bp_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_BP.csv"))
+#write.csv(res2_bp_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_BP.csv"))
+#write.csv(res2_bp_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_BP.csv"))
+#write.csv(res3_bp_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_BP.csv"))
+#write.csv(res3_bp_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_BP.csv"))
+#write.csv(res4_bp_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_BP.csv"))
+#write.csv(res4_bp_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_BP.csv"))
+
+# write.csv(res1_cc_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_CC.csv"))
+# write.csv(res1_cc_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_CC.csv"))
+# write.csv(res2_cc_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_CC.csv"))
+# write.csv(res2_cc_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_CC.csv"))
+# write.csv(res3_cc_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_CC.csv"))
+# write.csv(res3_cc_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_CC.csv"))
+# write.csv(res4_cc_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_CC.csv"))
+# write.csv(res4_cc_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_CC.csv"))
+
+# write.csv(res1_mf_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_MF.csv"))
+# write.csv(res1_mf_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_MF.csv"))
+# write.csv(res2_mf_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_MF.csv"))
+# write.csv(res2_mf_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_MF.csv"))
+# write.csv(res3_mf_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_MF.csv"))
+# write.csv(res3_mf_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_MF.csv"))
+# write.csv(res4_mf_up, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_MF.csv"))
+# write.csv(res4_mf_down, file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_MF.csv"))
+
+
+

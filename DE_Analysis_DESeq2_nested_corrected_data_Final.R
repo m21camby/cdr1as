@@ -209,6 +209,7 @@ res2.df$WT <- DGEm_normalized_WT
 res2.df$gene[res2.df$gene == "1700020I14Rik"] <- "Cyrano"
 res2.df$gene[res2.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(res2.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
 
 # KOm7oe vs KO
 res3 <- results(dds, name=c("genotypeKO.condOE"))
@@ -218,6 +219,7 @@ res3.df$WT <- DGEm_normalized_WT
 res3.df$gene[res3.df$gene == "1700020I14Rik"] <- "Cyrano"
 res3.df$gene[res3.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(res3.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
 
 
 # ------------------------- #
@@ -243,6 +245,7 @@ res1.df$WT <- DGEm_normalized_WT
 res1.df$gene[res1.df$gene == "1700020I14Rik"] <- "Cyrano"
 res1.df$gene[res1.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(res1.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
+res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
 
 # WTm7oe vs WT
 res2 <- results(dds, contrast=c("group","WTm7o", "WT"), test="Wald")
@@ -271,6 +274,8 @@ res4.df$WT <- DGEm_normalized_WT
 res4.df$gene[res4.df$gene == "1700020I14Rik"] <- "Cyrano"
 res4.df$gene[res4.df$gene == "C230004F18Rik"] <- "Cdr1os"
 saveRDS(res4.df, file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+
 
 target_MA_Plot <- function(DF, labels){
   ggplot(DF, aes(x = WT, y = log2FoldChange)) + 
@@ -314,6 +319,16 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
 
+# without text
+g1 <- target_MA_Plot(res1.df, labels = "log2FoldChange") + 
+  coord_cartesian(ylim = c(-5,5)) 
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/DESeq2_WTN_res1_without_text.pdf",
+       plot = g1,
+       scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
+       dpi = 300)
+
+
 g2 <- target_MA_Plot(res2.df, labels = "log2FC (WTN vs WTN-miR-7oe)")  +
   geom_point(data = res2.df[which(res2.df$gene %in% target_genes & res2.df$padj < 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkorange", size = 3) + 
   geom_point(data = res2.df[which(res2.df$gene %in% target_genes & res2.df$padj > 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkgreen", size = 3) + 
@@ -330,6 +345,11 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        plot = g2,
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
+
+
+
+
+
 
 g3 <- target_MA_Plot(res3.df, labels = "log2FC (FullKO vs FullKO-miR-7oe)")  +
   geom_point(data = res3.df[which(res3.df$gene %in% target_genes & res3.df$padj < 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkorange", size = 3) + 
@@ -348,6 +368,8 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
 
+
+
 g4 <- target_MA_Plot(res4.df, labels = "log2FC (WTN vs FullKO-miR-7oe)")  +
   geom_point(data = res4.df[which(res4.df$gene %in% target_genes & res4.df$padj < 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkorange", size = 3) + 
   geom_point(data = res4.df[which(res4.df$gene %in% target_genes & res4.df$padj > 0.05), ], aes(x = WT, y = log2FoldChange), color = "darkgreen", size = 3) + 
@@ -365,6 +387,14 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
 
+# without text
+g4 <- target_MA_Plot(res4.df, labels = "log2FoldChange")  +
+  coord_cartesian(ylim = c(-5,5))
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/DESeq2_WTN_res4_without_text.pdf",
+       plot = g4,
+       scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
+       dpi = 300)
 
 # ------------------------- #
 # nested only MA plots
@@ -389,6 +419,17 @@ ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/F
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)
 
+
+# without text
+g2 <- target_MA_Plot(res2.df, labels = "log2FoldChange") + 
+  coord_cartesian(ylim = c(-5,5)) 
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/DESeq2_WTN_res2_without_text.pdf",
+       plot = g2,
+       scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
+       dpi = 300)
+
+
 res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
 
 g3 <- target_MA_Plot(res3.df, labels = "log2FC (FullKO vs FullKO-miR-7oe)")  +
@@ -404,6 +445,15 @@ g3 <- target_MA_Plot(res3.df, labels = "log2FC (FullKO vs FullKO-miR-7oe)")  +
 g3
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/DESeq2_WTN_res3_nested.pdf",
+       plot = g3,
+       scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
+       dpi = 300)
+
+# without text
+g3 <- target_MA_Plot(res3.df, labels = "log2FoldChange") + 
+  coord_cartesian(ylim = c(-5,5)) 
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/DESeq2_WTN_res3_without_text.pdf",
        plot = g3,
        scale = 1, width = 5, height = 4, units = "in", device = cairo_pdf,
        dpi = 300)

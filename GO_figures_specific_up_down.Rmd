@@ -1,0 +1,538 @@
+---
+title: "GO specific check"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float: false
+    code_folding: hide
+---
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+.libPaths(c("/data/rajewsky/home/skim/R/usr_lib_Seurat/", "/data/rajewsky/home/skim/R/usr_lib_v4/"))
+#.libPaths()
+unloadNamespace("mgcv")
+unloadNamespace("Matrix")
+
+
+library(ggplot2)
+library(gridExtra)
+library(ggrepel)
+library(dplyr)
+library(cowplot)
+library(paletteer)
+library(stringr)
+library(scales)
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+cor_mat <- readRDS("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTN_batch_corr_nested_DGEm.rda")
+
+
+
+
+res3_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_SPECIFIC_UP", "_BP.rda"))
+res3_bp_up <- res3_bp_up[which(res3_bp_up$p.value_elim < 0.05 & res3_bp_up$Annotated < 1000 & res3_bp_up$Annotated > 30), ] 
+res3_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_SPECIFIC_DOWN", "_BP.rda"))
+res3_bp_down <- res3_bp_down[which(res3_bp_down$p.value_elim < 0.05 & res3_bp_down$Annotated < 1000 & res3_bp_down$Annotated > 30), ] 
+
+
+res4_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_SPECIFIC_UP", "_BP.rda"))
+res4_bp_up <- res4_bp_up[which(res4_bp_up$p.value_elim < 0.05 & res4_bp_up$Annotated < 1000 & res4_bp_up$Annotated > 30), ] 
+res4_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_SPECIFIC_DOWN", "_BP.rda"))
+res4_bp_down <- res4_bp_down[which(res4_bp_down$p.value_elim < 0.05 & res4_bp_down$Annotated < 1000 & res4_bp_down$Annotated > 30), ] 
+
+
+res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+
+# up-genes
+set1 <- res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]
+set2 <- res2.df[which(res2.df$log2FoldChange > 0.5 &  res2.df$padj < 0.05), ]
+set3 <- res3.df[which(res3.df$log2FoldChange > 0.5 &  res3.df$padj < 0.05), ]
+set4 <- res4.df[which(res4.df$log2FoldChange > 0.5 &  res4.df$padj < 0.05), ] 
+
+genes1 <- c(set1, set2, set3, set4) %>% unique()
+
+# down-genes
+set5 <- res1.df[which(res1.df$log2FoldChange < -0.5 &  res1.df$padj < 0.05), ]
+set6 <- res2.df[which(res2.df$log2FoldChange < -0.5 &  res2.df$padj < 0.05), ]
+set7 <- res3.df[which(res3.df$log2FoldChange < -0.5 &  res3.df$padj < 0.05), ]
+set8 <- res4.df[which(res4.df$log2FoldChange < -0.5 &  res4.df$padj < 0.05), ]
+
+
+# res3 specific
+specific_genes_up3 <- Reduce(setdiff, list(set3$gene,set1$gene,set2$gene,set4$gene)) 
+specific_genes_down3 <- Reduce(setdiff, list(set7$gene,set5$gene,set6$gene,set8$gene)) 
+
+# res4 specific
+specific_genes_up4 <- Reduce(setdiff, list(set4$gene,set1$gene,set2$gene,set3$gene)) 
+specific_genes_down4 <- Reduce(setdiff, list(set8$gene,set5$gene,set6$gene,set7$gene)) 
+
+```
+
+## 1. Results
+
+### res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res3_bp_up)
+```
+
+### res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res3_bp_down)
+```
+
+### res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res4_bp_up)
+```
+
+### res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res4_bp_down)
+```
+
+
+## 2. Term check 
+
+### 2-1. axon res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("axon", res3_bp_up$Term), ]
+```
+
+### 2-2. axon res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("axon", res4_bp_up$Term), ]
+```
+
+### 2-3. axon res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("axon", res3_bp_down$Term), ]
+```
+
+### 2-4. axon res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("axon", res4_bp_down$Term), ]
+```
+
+### 3-1. potential res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("potential", res3_bp_up$Term), ]
+```
+
+### 3-2. potential res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("potential", res4_bp_up$Term), ]
+```
+
+### 3-3. potential res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("potential", res3_bp_down$Term), ]
+```
+
+### 3-4. potential res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("potential", res4_bp_down$Term), ]
+```
+
+### 4-1. synap res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("synap", res3_bp_up$Term), ]
+```
+
+### 4-2. synap res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("synap", res4_bp_up$Term), ]
+```
+
+### 4-3. synap res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("synap", res3_bp_down$Term), ]
+```
+
+### 4-4. synap res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("synap", res4_bp_down$Term), ]
+```
+ 
+
+### 5-1. vesicle res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("vesicle", res3_bp_up$Term), ]
+```
+
+### 5-2. vesicle res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("vesicle", res4_bp_up$Term), ]
+```
+
+### 5-3. vesicle res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("vesicle", res3_bp_down$Term), ]
+```
+
+### 5-4. vesicle res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("vesicle", res4_bp_down$Term), ]
+```
+
+### 6-1. apopto res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("apopto", res3_bp_up$Term), ]
+```
+
+### 6-2. apopto res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("apopto", res4_bp_up$Term), ]
+```
+
+### 6-3. apopto res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("apopto", res3_bp_down$Term), ]
+```
+
+### 6-4. apopto res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("apopto", res4_bp_down$Term), ]
+```
+
+### 7-1. mito res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("mito", res3_bp_up$Term), ]
+```
+
+### 7-2. mito res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("mito", res4_bp_up$Term), ]
+```
+
+### 7-3. mito res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("mito", res3_bp_down$Term), ]
+```
+
+### 7-4. mito res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("mito", res4_bp_down$Term), ]
+```
+
+### 8-1. signaling res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("signaling ", res3_bp_up$Term), ]
+```
+
+### 8-2. signaling res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("signaling", res4_bp_up$Term), ]
+```
+
+### 8-3. signaling res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("signaling", res3_bp_down$Term), ]
+```
+
+### 8-4. signaling res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("signaling", res4_bp_down$Term), ]
+```
+
+### 9-1. phosphorylation res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("phosphorylation ", res3_bp_up$Term), ]
+```
+
+### 9-2. phosphorylation res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("phosphorylation", res4_bp_up$Term), ]
+```
+
+### 9-3. phosphorylation res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("phosphorylation", res3_bp_down$Term), ]
+```
+
+### 9-4. phosphorylation res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("phosphorylation", res4_bp_down$Term), ]
+```
+
+### 10-1. ubiquitination res3 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("ubiquitination ", res3_bp_up$Term), ]
+```
+
+### 10-2. ubiquitination res4 specific-up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("ubiquitination", res4_bp_up$Term), ]
+```
+
+### 10-3. ubiquitination res3 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("ubiquitination", res3_bp_down$Term), ]
+```
+
+### 10-4. ubiquitination res4 specific-down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("ubiquitination", res4_bp_down$Term), ]
+```
+
+## 3. Figures
+
+### 3-1. Dot plot
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+Terms <- c("neuronal action potential","positive regulation of excitatory postsynaptic potential",
+           "regulation of synaptic plasticity", "regulation of long-term neuronal synaptic plasticity",
+           "synaptic transmission, GABAergic", "regulation of long-term synaptic potentiation",
+           "vesicle targeting",
+           "mitochondrion organization",
+           "glutamate receptor signaling pathway"
+           )
+
+res3_bp_up_sub <- res3_bp_up[res3_bp_up$Term %in% Terms, ]
+res3_bp_up_sub$exp <- "KOm7oe_vs_KO_Up"
+
+res4_bp_up_sub <- res4_bp_up[res4_bp_up$Term %in% Terms, ]
+res4_bp_up_sub$exp <- "KOm7oe_vs_WT_Up"
+
+res3_bp_down_sub <- res3_bp_down[res3_bp_down$Term %in% Terms, ]
+res3_bp_down_sub$exp <- "KOm7oe_vs_KO_Down"
+
+res4_bp_down_sub <- res4_bp_down[res4_bp_down$Term %in% Terms, ]
+res4_bp_down_sub$exp <- "KOm7oe_vs_WT_Down"
+
+GO.df <- rbind(
+           res3_bp_down_sub,
+           res4_bp_down_sub,
+          
+           res3_bp_up_sub,
+           res4_bp_up_sub)
+
+
+GO.df <- GO.df %>% dplyr::select(Term, Annotated, Significant, p.value_elim, exp)
+
+GO.df$ratio <- GO.df$Significant / GO.df$Annotated
+
+GO.df$exp <- factor(GO.df$exp, levels = c(
+                                          "KOm7oe_vs_KO_Up", "KOm7oe_vs_KO_Down",
+                                          "KOm7oe_vs_WT_Up", "KOm7oe_vs_WT_Down"))
+
+GO.df$p.value_elim <- as.numeric(GO.df$p.value_elim)
+GO.df$p.value_elim <- -log10(GO.df$p.value_elim)
+GO.df$Term <- factor(GO.df$Term, levels = rev(unique(GO.df$Term)))
+
+GO.df$Term <- factor(GO.df$Term,
+                     levels = rev(c(Terms[1],Terms[2],Terms[3],Terms[4],Terms[9],
+                                    Terms[7],Terms[6], Terms[5],Terms[8])))
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=8}
+g1 <- ggplot(GO.df, aes(x=exp,
+               y=Term,
+               colour=p.value_elim,
+               size=ratio)) +
+        geom_point() +
+        expand_limits(x=0) +
+        labs(x="Expected", y="GO term", colour="-log10(p-value)", size="gene ratio") +
+  theme_minimal() + theme(axis.title = element_blank(),
+                          axis.text.y =  element_text(size = 10, color = "black"),
+                          axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5, color = "black")) +
+  scale_color_gradientn("-log10(p-value)", colours = c(paletteer_d("ggsci::amber_material"))) +
+  guides(color = guide_colourbar(order = 1), size = guide_legend(order = 2))
+
+
+g1
+
+# ggsave(filename = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/GO_specific_figures_dot_plot.pdf",
+#        plot = g1,
+#        scale = 1, width = 8, height = 8, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+### 3-2. Heatmap
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+extract_genes <- function(term = "startle response"){
+
+  final_genes <- c()
+  GO <- c(list)
+
+  GO[[1]] <- res3_bp_down
+  GO[[2]] <- res4_bp_down
+  GO[[3]] <- res3_bp_up
+  GO[[4]] <- res4_bp_up
+
+  for(i in c(1:4)){
+  genes1 <- GO[[i]][GO[[i]]$Term %in% term, ]$genes
+  genes1 <- unlist(strsplit(genes1, ","))
+  genes1 <- str_squish(genes1)
+  final_genes <- c(final_genes, genes1)
+
+  }
+
+  return(final_genes)
+}
+gene1 <- extract_genes(term = Terms[1])
+gene2 <- extract_genes(term = Terms[2])
+gene3 <- extract_genes(term = Terms[3])
+gene4 <- extract_genes(term = Terms[4])
+gene5 <- extract_genes(term = Terms[5])
+gene6 <- extract_genes(term = Terms[6])
+gene7 <- extract_genes(term = Terms[7])
+gene8 <- extract_genes(term = Terms[8])
+gene9 <- extract_genes(term = Terms[9])
+
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+ZS.df <- apply(cor_mat, 1, function(x) (x - mean(x)) / sd(x))
+ZS.df <- data.frame(t(ZS.df))
+ZS.df$gene <- rownames(ZS.df)
+
+
+ZS.df <- ZS.df %>% mutate(GO = case_when(gene %in% gene1 ~ "neuronal \naction \npotential",
+                                         gene %in% gene7 ~ Terms[7],
+                                         gene %in% gene2 ~ "positive \nregulation \nof \nexcitatory \npostsynaptic \npotential",
+                                         gene %in% gene3 ~ "regulation \nof \nsynaptic \nplasticity",
+                                         gene %in% gene4 ~ "regulation \nof \nlong-term \nneuronal \nsynaptic \nplasticity",
+                                         gene %in% gene9 ~ "glutamate \nreceptor \nsignaling \npathway",
+                                         gene %in% gene6 ~ "regulation \nof \nlong-term \nsynaptic \npotentiation" ,
+                                         gene %in% gene5 ~ "synaptic \ntransmission, \nGABAergic",
+                                         gene %in% gene8 ~ Terms[8]))
+
+ZS.df <- ZS.df[!is.na(ZS.df$GO), ]
+
+ZS.df2 <- tidyr::gather(ZS.df, sample, z_score, "WTC1":"KOm7oe4")
+
+ZS.df2 <- ZS.df2 %>% mutate(exp = case_when(sample %in% c("WTC1", "WTC2", "WTC3","WTC4") ~ "WT",
+                                            sample %in% c("WTm7oe1", "WTm7oe2", "WTm7oe3","WTm7oe4") ~ "WTm7oe",
+                                            sample %in% c("KOC1", "KOC2", "KOC3", "KOC4") ~ "KO",
+                                            sample %in% c("KOm7oe1", "KOm7oe2", "KOm7oe3", "KOm7oe4") ~ "KOm7oe"))
+
+ZS.df2$exp <- factor(ZS.df2$exp, levels = c("WT", "WTm7oe", "KO", "KOm7oe"))
+
+ZS.df2$GO <- factor(ZS.df2$GO, levels = c("neuronal \naction \npotential",
+                                          Terms[7],
+                                          "positive \nregulation \nof \nexcitatory \npostsynaptic \npotential",
+                                          "regulation \nof \nsynaptic \nplasticity", 
+                                          "regulation \nof \nlong-term \nneuronal \nsynaptic \nplasticity",
+                                          "glutamate \nreceptor \nsignaling \npathway",
+                                          "regulation \nof \nlong-term \nsynaptic \npotentiation" ,
+                                          "synaptic \ntransmission, \nGABAergic", Terms[8]))
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=20}
+g1 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score)) +
+  geom_tile() +
+  #scale_x_discrete(expand = c(0,0)) +
+  scale_y_discrete(position = "right",  expand = c(0,0))  + coord_flip() +  theme_classic() + theme(plot.title = element_text(size = 15, hjust = 0.5),
+                                        axis.title.y = element_blank(),
+                                         axis.title.x = element_blank(),
+                                         axis.text.y = element_blank(),
+                                         axis.text.x = element_text(angle = 90, vjust = 11.5, size = 12, color = "black"),
+                                         #axis.text.y = element_text(size = 12, color = "black"),
+                                         axis.line = element_line(color = "white"),
+                                         axis.ticks = element_line(color = "white"),
+                                         legend.title = element_text(size = 11, color = "black"),
+                                         legend.text = element_text(size = 11, color = "black"),
+                                         panel.spacing.x = unit(0.05, "lines"),
+                                        panel.spacing.y = unit(0.05, "lines"),
+                                        panel.margin= unit(c(0), "lines"), 
+                                        #plot.margin = margin(0, 0, 0, 0, "cm"),
+                                        
+                                        
+                                        #panel.margin= unit(c(0), "lines"),
+                                        #plot.margin = margin(0, 0, 0, 0, "cm"),
+                                        strip.background = element_blank(),
+                                        strip.text.x = element_text(size = 10)) +
+  #scale_fill_gradientn("expression", colours = c("#003366", "#FFCC66", "#990000"), limits = c(-1, 1), oob=squish) +
+  scale_fill_gradientn("z-score", colours = c(rev(paletteer_d("ggsci::light_blue_material")), paletteer_d("ggsci::orange_material")), limits = c(-1.5, 1.5), oob=squish) +
+  #scale_fill_gradientn(colours = cols, limits = c(-2, 2), oob=squish) +
+  facet_grid(exp ~ GO, scales = "free", space = "free", switch = 'x')
+g1
+
+# ggsave(filename = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/GO_specific_figures_heatmap.pdf",
+#        plot = g1,
+#        scale = 1, width = 20, height = 6, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+g2 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score)) +
+  geom_tile() + 
+  #scale_x_discrete(expand = c(0,0)) + 
+  scale_y_discrete(position = "right",  expand = c(0,0))  + coord_flip() +  theme_classic() + 
+  theme(plot.title = element_text(size = 15, hjust = 0.5), 
+                                                                                                    axis.title.y = element_blank(),
+                                                                                                    axis.title.x = element_blank(),
+                                                                                                    axis.text.y = element_blank(),
+                                                                                                    axis.text.x = element_text(angle = 90, vjust = 11.5, size = 12, color = "black"),
+                                                                                                    #axis.text.y = element_text(size = 12, color = "black"),
+                                                                                                    axis.line = element_line(color = "white"),
+                                                                                                    axis.ticks = element_line(color = "white"),
+                                                                                                    legend.title = element_text(size = 11, color = "black"),
+                                                                                                    legend.text = element_text(size = 11, color = "black"),
+                                                                                                    panel.spacing.x = unit(0.05, "lines"), # change to 0.05 as Cledi asked for space
+                                                                                                    panel.spacing.y = unit(0.05, "lines"), # change to 0.05 as Cledi asked for space
+                                                                                                    panel.margin= unit(c(0), "lines"), 
+                                                                                                    plot.margin = margin(0, 0, 0, 0, "cm"),
+                                                                                                    strip.background = element_blank(),
+                                                                                                    strip.text.x = element_text(size = 10)) + 
+  #scale_fill_gradientn("expression", colours = c("#003366", "#FFCC66", "#990000"), limits = c(-1, 1), oob=squish) +
+  scale_fill_gradientn("z-score", colours = c(rev(paletteer_d("ggsci::light_blue_material")), paletteer_d("ggsci::orange_material")), limits = c(-1.5, 1.5), oob=squish) +
+  #scale_fill_gradientn(colours = cols, limits = c(-2, 2), oob=squish) + 
+  facet_grid(exp ~ GO, scales = "free", space = "free", switch = 'x')
+
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+sessionInfo()
+```
+

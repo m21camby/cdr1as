@@ -47,7 +47,7 @@ g1 <- ggvenn(
   x, 
   stroke_linetype = 1, 
   fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
-  stroke_size = 1, set_name_size = 9, text_size = 12
+  stroke_size = 1, set_name_size = 9, text_size = 15
 ) + 
   theme(plot.margin=unit(c(0,0,0,0),"cm"))
 
@@ -56,10 +56,24 @@ g1
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/venn_diagram_up_all.pdf",
        plot = g1,
-       scale = 1, width = 20, height = 15, units = "in", device = cairo_pdf,
+       scale = 1, width = 18, height = 12, units = "in", device = cairo_pdf,
        dpi = 300)
 
 
+g1 <- ggvenn(
+  x, 
+  stroke_linetype = 1, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 1, set_name_size = 9, text_size = 15, show_percentage = FALSE
+) + 
+  theme(plot.margin=unit(c(0,0,0,0),"cm"))
+
+g1
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/venn_diagram_up_all_no_per.pdf",
+       plot = g1,
+       scale = 1, width = 9, height = 6, units = "in", device = cairo_pdf,
+       dpi = 300)
 
 # ---------------------- #
 # down-regulated
@@ -77,15 +91,30 @@ g1 <- ggvenn(
   x, 
   stroke_linetype = 1, 
   fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
-  stroke_size = 1, set_name_size = 9, text_size = 12
+  stroke_size = 1, set_name_size = 9, text_size = 15
 ) + 
   theme(plot.margin=unit(c(0,0,0,0),"cm"))
 g1
 
 ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/venn_diagram_down_all.pdf",
        plot = g1,
-       scale = 1, width = 20, height = 15, units = "in", device = cairo_pdf,
+       scale = 1, width = 18, height = 12, units = "in", device = cairo_pdf,
        dpi = 300)
+
+g1 <- ggvenn(
+  x, 
+  stroke_linetype = 1, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 1, set_name_size = 9, text_size = 15, show_percentage = FALSE
+) + 
+  theme(plot.margin=unit(c(0,0,0,0),"cm"))
+g1
+
+ggsave(filename = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Figures/venn_diagram_down_all_no_per.pdf",
+       plot = g1,
+       scale = 1, width = 9, height = 6, units = "in", device = cairo_pdf,
+       dpi = 300)
+
 
 
 # co-up specific KOm7oe vs KO & WTm7oe vs WT 
