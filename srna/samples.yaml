@@ -1,0 +1,84 @@
+# Small RNA-seq analyses for Cledi sample definition YAML file
+#
+# Copyright (C) 2019  Marcel Schilling
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public
+# License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
+
+#######################
+# general information #
+#######################
+
+# file:        samples.yaml
+# created:     2019-02-07
+# last update: 2019-09-24
+# author:      Marcel Schilling <marcel.schilling@mdc-berlin.de>
+# purpose:     define samples for pipeline analyzing sRNA-seq data for Cledi
+
+
+######################################
+# change log (reverse chronological) #
+######################################
+
+# 2019-09-24: adjusted for new data with Seung
+# 2019-02-07: added Monika's cortex samples (positive control)
+#             initial version (refactored from Snakefile)
+
+
+###########
+# samples #
+###########
+
+# run
+cledi3:
+  fastq:
+    directory: /data/rajewsky/sequencing/mouse/20190822_ccerdaj/fastq
+    directory_prefix: cc_nr_sm_
+    directory_suffix: _exp
+    suffix: _R1_001.fastq.gz
+  samples:
+    # cell type
+    Primary_Neurons:
+      # condition
+      KCl:
+        # sample ID/index
+        N1_1: 9
+        N1_2: 10
+        N2_1: 11
+        N2_2: 12
+        N3_1: 13
+        N3_2: 14
+        N4_1: 15
+        N4_2: 16
+        N1_3: 21
+        N2_3: 22
+        N3_3: 23
+        N4_3: 24
+        N3_4: 25
+        N4_4: 26
+    Primary_Astrocytes:
+      KCl:
+        A1_1: 1
+        A1_2: 2
+        A2_1: 3
+        A2_2: 4
+        A3_1: 5
+        A3_2: 6
+        A4_1: 7
+        A4_2: 8
+        A1_3: 17
+        A2_3: 18
+        A3_3: 19
+        A4_3: 20

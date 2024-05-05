@@ -1,0 +1,1151 @@
+---
+# Small RNA-seq analyses for Cledi report R Markdown file
+#
+# Copyright (C) 2018 - 2019  Marcel Schilling
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public
+# License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
+
+#######################
+# general information #
+#######################
+
+# file:        report.Rmd
+# created:     2018-11-21
+# last update: 2019-09-24
+# author:      Marcel Schilling <marcel.schilling@mdc-berlin.de>
+# purpose:     generate report for sRNA-seq data analyses for Cledi
+
+
+######################################
+# change log (reverse chronological) #
+######################################
+
+# 2019-09-24: adjusted to new data with Seung
+# 2019-02-07: added support for several time points and cell types
+# 2019-01-31: added PCA plot to sample comparison
+# 2019-01-30: fixed DESeq2 command to match the script Petar actually used
+#             added sample correlation heatmap/clustering
+#             replaced 'tibble' (depricated by upstream) by 'tibble'
+# 2019-01-17: added controllable annotations to MA plots (dropping subplot
+#             support, replacing axis by data transformation & refactoring
+#             legend ordering)
+# 2018-11-29: added comparison table to differential expression analyses
+#             added replicate comparison (scatter/correlation plot matrices)
+# 2018-11-26: added DESeq2 results table
+#             added number formatting to table output
+#             ordered samples as defined by Snakemake
+#             moved first column to rownames for table output
+# 2018-11-23: switched to reference-only means on MA-plot abscissa
+#             refactored code using DESeq2::results' 'tidy' option
+#             refactored code using tibble functions
+#             changed DESeq2 fit type from 'parametric' (the default) to
+#             'local' for comparability with Petar's results
+#             added removal of non-detected miRNAs from differential
+#             expression analyses
+#             added DBWT vs. WT comparison
+# 2018-11-22: added differential miRNA analyses including MA plot
+#             added normalized sequences per miRNA and sample table
+#             added reads per miRNA and sample table
+# 2018-11-21: initial version (sample table only)
+
+
+############################
+# rmarkdown options [YAML] #
+############################
+
+# Set the document title.
+title: "Report for sRNA-seq data analyses for Cledi"
+
+# Set the document author.
+author: "[Marcel Schilling](mailto:marcel.schilling@mdc-berlin.de) feat. [Kim Seungjoon](mailto:seungjoon.kim@mdc-berlin.de)"
+
+# Automatically set the document date to current system date (at the
+# time of rendering).
+date: "`r Sys.Date()`"
+
+# Set the default output:
+output:
+
+  # Create HTML output by default.
+  bookdown::html_document2:
+
+    # Include table of contents in the HTML output.
+    toc: true
+
+    # Number sections in the HTML output.
+    number_sections: true
+
+    # Embed plots etc. (base64-encoded) into the HTML output.
+    self_contained: true
+
+
+#####################
+# knitr options [R] #
+#####################
+---
+
+```{r knitr-options, include = FALSE, echo = FALSE}
+# Set default code chunks options:
+knitr::opts_chunk$set(
+
+  # Don't include code in the output by default.
+  echo = FALSE,
+
+  # Don't include R messages in the output by default.
+  message = FALSE,
+
+  # Don't cache the results of code chunks by default.
+  cache = FALSE,
+
+  # Set the dependencies of code chunks automatically by default.
+  autodep = TRUE)
+
+
+##############
+# parameters #
+##############
+```
+
+```{r parameters}
+# Define miRNAs to label in MA plots.
+# Note: This was sent by Cledi:
+# ----------------------------- citation begin --------------------------------
+#   My favorite miRNAs are miR-7 and miR-671,  so if you could highlight both
+#   in the analysis will be perfect.
+# ------------------------------- citation end ----------------------------------
+mirs.to.label <- c("miR-7a", "miR-7b", "miR-671")
+
+
+#############
+# libraries #
+#############
+```
+
+```{r libraries}
+# Get functions for tidy data manipulation.
+library(dplyr)
+
+# Get function for extra fancy table output.
+library(DT)
+
+# Get functions for tidy data reading.
+library(readr)
+
+# Get more pipe operators.
+library(magrittr)
+
+# Get functions for tidy data convertion.
+library(tidyr)
+
+# Get functions for differential expression analyses.
+library(DESeq2)
+
+# Get functions to shift around rownames.
+library(tibble)
+
+# Get functions for interactive plots.
+library(plotly)
+
+# Get functions to combine interactive plots.
+library(htmltools)
+
+# Get functions for complex interactive heatmaps.
+library(iheatmapr)
+
+
+#############
+# functions #
+#############
+```
+
+```{r function-print-table, include = FALSE, eval = TRUE}
+# Define function to print an interactive table.
+# This is a wrapper around `DT::datatable` which overwrites some
+# defaults.
+# If `options` is given, `.extra.options` will be added. So to set the
+# exact `options` for `DT::datatable`, `.extra.options = list()` needs
+# to be passed as well.
+# If `rownames` is a column name, the corresponding column is used as
+# rownames.
+print.table <-
+  function(table.data, extensions = "Buttons", options = list(),
+           .extra.options = list(scrollX = TRUE, dom = "Bfrtip",
+                                 buttons = c("colvis", "excel")),
+           rownames = FALSE,
+           colnames = names(table.data) %>%
+                      gsub(".", " ", ., fixed = TRUE),
+           mark = " ", ...){
+
+    # Extract rownames column from table data if specified.
+    if(length(rownames) == 1 & rownames %in% names(table.data)){
+      rownames %<>% select(table.data, .)
+      table.data %<>% select(-match(names(rownames), names(.)))
+      rownames %<>% unname %>% unlist %>% as.character
+    }
+
+    # Render table passing down options.
+    table.data %>%
+    datatable(extensions = extensions, options = c(options, .extra.options),
+              rownames = rownames, colnames = colnames, ...) %>%
+    formatSignif(columns = table.data %>%
+                           sapply(is.numeric) %>%
+                           which %>%
+                           names,
+                 mark = mark, ...)
+  }
+```
+
+
+```{r function-parse-mirdeep2-tsv, include = FALSE, eval = TRUE}
+# Define function to read miRDeep2 quantification output TSV file.
+parse.mirdeep.tsv <-
+  function(tsv){
+
+    # Read TSV into tibble.
+    results <- read_tsv(tsv)
+
+    # Drop comment character from first column names.
+    colnames(results)[1] %<>%
+      sub(pattern = "^#", replacement = "")
+
+    # Convert column names to lower case and dot (`.`) separated.
+    colnames(results) %<>%
+      tolower %>%
+      sub(pattern="_", replacement = ".", fixed = TRUE)
+
+    # Drop parenthesis (`(`/`)`) from last column name.
+    colnames(results)[ncol(results)] %<>%
+      sub(pattern="(", replacement = ".", fixed = TRUE) %>%
+      sub(pattern=")$", replacement = "")
+
+    # Convert read counts to integers.
+    results %<>%
+      mutate(read.count = as.integer(read.count))
+
+    # Return relabeled tibble.
+    return(results)
+  }
+```
+
+
+```{r function-get-all-combinations, include = FALSE, eval = TRUE}
+# Define function to get all pairwise combinations of row of two `tibble`s.
+get.all.combinations <- function(tb1, tb2)
+  tb1 %>%
+    mutate(dummy = 1L) %>%
+    full_join(tb2 %>% mutate(dummy = 1L),
+              by = "dummy") %>%
+    select(-dummy)
+```
+
+
+```{r function-empty-plotly, include = FALSE, eval = TRUE}
+# Define function to create empty interactive plot for
+# scatter/correlation plot matrix.
+empty.plotly <- function(plot.data, reference = names(plot.data)[2],
+                         alternative = names(plot.data)[3], show.xaxis = TRUE,
+                         show.yaxis = TRUE, xlab = reference,
+                         ylab = alternative, xtype = "log", ytype = xtype,
+                         range = NULL, xrange = range, yrange = range,
+                         width = 700, height = width, ...)
+  plot_ly(type = "scatter", mode = "markers", showlegend = FALSE,
+          width = width, height = height) %>%
+    layout(xaxis = list(visible = show.xaxis, title = xlab, type = xtype,
+                        range = xrange, scaleanchor = "y"),
+           yaxis = list(visible = show.yaxis, title = ylab, type = ytype,
+                        range = yrange, scaleanchor = "x"))
+```
+
+
+```{r function-annnot-plotly, include = FALSE, eval = TRUE}
+# Define function to create interactive plot with text annnotation for
+# scatter/correlation plot matrix.
+annot.plotly <- function(plot.data, label, fontsize = 15,
+                         hovertext = NULL, ...)
+  plot.data %>%
+    empty.plotly(...) %>%
+    add_annotations(text = label, hovertext = hovertext, x = .5, y = .5,
+                    yref = "paper", xref = "paper", xanchor = "center",
+                    yanchor = "middle", showarrow = FALSE,
+                    font = list(size = fontsize))
+```
+
+
+```{r function-name-plotly, include = FALSE, eval = TRUE}
+# Define function to create interactive plot with sample name
+# annnotation for scatter/correlation plot matrix.
+name.plotly <- function(name.data, reference = names(name.data)[2],
+                        label = reference, name.label = "sample", ...)
+  name.data %>%
+    annot.plotly(reference = reference, label = label, hovertext = name.label,
+                 ...)
+```
+
+
+```{r function-corr-plotly, include = FALSE, eval = TRUE}
+# Define function to create interactive plot with sample correlation
+# annnotation for scatter/correlation plot matrix.
+corr.plotly <- function(corr.data, corr.fun = cor, method = "pearson",
+                        corr.label = method, digit = 2, ...)
+  corr.data %$%
+    corr.fun(reference, alternative, method = method) %>%
+    signif(digit = digit) %>%
+    annot.plotly(corr.data, label = ., hovertext = corr.label, ...)
+```
+
+
+```{r function-scatter-plotly, include = FALSE, eval = TRUE}
+# Define function to create interactive scatter plot.
+scatter.plotly <- function(scatter.data, scatter.label = "value",
+                           marker.col = I("grey50"), ...)
+  scatter.data %>%
+    empty.plotly(...) %>%
+    add_markers(data = scatter.data, x = ~reference, y = ~alternative,
+                name = scatter.label, text = ~mirna, color = marker.col)
+```
+
+
+```{r function-used-levels, include = FALSE, eval = TRUE}
+# Define function to identify all levels used in a `factor`.
+used.levels <- function(fac)
+  fac %>%
+    droplevels %>%
+    levels
+```
+
+
+```{r function-max-level, include = FALSE, eval = TRUE}
+# Define function to identify the highest level used in a `factor`.
+max.level <- function(fac)
+  fac %>%
+    used.levels %>%
+    tail(1)
+```
+
+
+```{r function-min-level, include = FALSE, eval = TRUE}
+# Define function to identify the lowest level used in a `factor`.
+min.level <- function(fac)
+  fac %>%
+    used.levels %>%
+    head(1)
+```
+
+
+```{r function-count-label, include = FALSE, eval = TRUE}
+# Define function to generate a miRNA count label based on expression data.
+count.label <- function(mir.data, fixed.label = NA, detected.only = TRUE,
+                        detection.inf = 0, big.mark = " ", ...){
+
+  # Don't overwrite user supplied label.
+  if(!is.na(fixed.label)){
+    return(fixed.label)
+  }
+
+  # Remove miRNAs expressed below detection threshold, if requested.
+  if(detected.only){
+    mir.data %<>%
+      select(-mirna) %>%
+      filter(do.call(pmax, .) > detection.inf)
+  }
+
+  # Count miRNAs and format as label.
+  mir.data %>%
+    nrow %>%
+    prettyNum(big.mark = big.mark) %>%
+    paste0("N = ", .)
+}
+```
+
+
+```{r function-plot-scatter-corr-matrix-pair, include = FALSE, eval = TRUE}
+# Define function to generate a scatter/correlation plot matrix panel
+# based on expression data.
+plot.scatter.corr.matrix.pair <- function(pair.data, value = "seq.norm",
+                                          last.ref = pair.data$reference %>%
+                                                     max.level,
+                                          first.alt = pair.data$alternative %>%
+                                                      min.level,
+                                          name.label = NA,
+                                          scatter.label = NA,
+                                          name.fontsize = 12,
+                                          corr.fontsize = 15,
+                                          ...){
+
+  # Get reference/alternative sample names (as `factor`s).
+  reference <- unique(pair.data$reference)
+  alternative <- unique(pair.data$alternative)
+
+  # Figure out where in the plot matrix the panel will go.
+  is.diag <- alternative == reference
+  is.lowerleft <- as.integer(alternative) < as.integer(reference)
+
+  # Convert reference/alternative samples names to `character` to enable
+  # proper subsetting by them.
+  reference %<>% as.character
+  alternative %<>% as.character
+
+  # Check if the plot panel needs the x axis and the y axis.
+  is.last.row <- reference == last.ref
+  is.first.col <- alternative == first.alt
+
+  # Convert long data to wide data for plotting and relabel the
+  # alternative/reference column(s).
+  pair.data %<>%
+    select(mirna, sample, value = value) %>%
+    spread(sample, value) %>%
+    select(mirna, reference = reference, alternative = alternative)
+
+  # Generate scatter plot for lower-left panels.
+  if(is.lowerleft){
+    return(scatter.plotly(pair.data,
+                          scatter.label = pair.data %>%
+                                          count.label(scatter.label, ...),
+                          ...))
+  }
+
+  # Generate name annnotation plot for on-diagonal panels.
+  if(is.diag){
+    return(name.plotly(pair.data, reference = reference,
+                       fontsize = name.fontsize,
+                       name.label = pair.data %>%
+                                    count.label(name.label, ...),
+                       alternative = alternative, show.xaxis = !is.last.row,
+                       show.yaxis = !is.first.col, ...))
+  }
+
+  # Generate correlation annnotation plot for top-right panels.
+  corr.plotly(pair.data, reference = reference, fontsize = corr.fontsize,
+              alternative = alternative, ...)
+}
+```
+
+
+```{r function-plot-scatter-corr-matrix, include = FALSE, eval = TRUE}
+# Define function to generate a scatter/correlation plot matrix based on
+# expression data.
+plot.scatter.corr.matrix <- function(expression.data, title = "Correlation",
+                                     remove.undetected = TRUE,
+                                     detection.min.samples = 1L,
+                                     detection.inf.seq.norm = 0,
+                                     title.fontsize = 15, ...){
+
+  # Remove data for miRNAs not detected in sufficiently many sample with
+  # sufficiently many reads, if requested.
+  if(remove.undetected)
+    expression.data %<>%
+      select(mirna, sample, seq.norm) %>%
+      filter(seq.norm > detection.inf.seq.norm) %>%
+      select(mirna) %>%
+      group_by(mirna) %>%
+      slice(detection.min.samples) %>%
+      ungroup %>%
+      left_join(expression.data)
+
+  # Get all reference/alternative sample combinations, generate the
+  # individual plot matrix panels, combine panels into a single plot,
+  # and add title.
+  expression.data %>%
+    distinct(sample) %>%
+    get.all.combinations(., .) %>%
+    setNames(c("reference", "alternative")) %>%
+    get.all.combinations(expression.data) %>%
+    group_by(reference, alternative) %>%
+    do(pair.plot = plot.scatter.corr.matrix.pair(
+                     ., xlab = "norm. seq.", ylab ="norm. seq.",
+                     detected.only = remove.undetected,
+                     detection.inf = detection.inf.seq.norm,
+                     ...)) %>%
+    subplot(nrows = expression.data %>%
+                    distinct(sample) %>%
+                    nrow,
+            shareX = TRUE, shareY = TRUE) %>%
+    add_annotations(text = title, x = .5, y = 1,
+                    yref = "paper", xref = "paper", xanchor = "center",
+                    yanchor = "top", showarrow = FALSE,
+                    font = list(size = title.fontsize))
+}
+```
+
+
+```{r function-get-corr, include = FALSE, eval = TRUE}
+get.corr <- function(pair.data, value = "seq.norm", corr.fun = cor,
+                     method = "pearson", ...){
+
+  # Get reference/alternative sample names (as `character`s).
+  reference <- unique(pair.data$reference) %>% as.character
+  alternative <- unique(pair.data$alternative) %>% as.character
+
+  # Convert long data to wide data for plotting and relabel the
+  # alternative/reference column(s).
+  pair.data %<>% select(mirna, sample, value = value) %>%
+                 spread(sample, value) %>%
+                 select(reference = reference, alternative = alternative)
+
+  if(reference == alternative){
+    pair.data %<>% mutate(reference = alternative)
+  }
+
+  pair.data %$%
+    corr.fun(reference, alternative, method = method)
+}
+```
+
+
+```{r function-plot-corr-heatmap, include = FALSE, eval = TRUE}
+# Define function to generate a sample correlation heatmap based on
+# expression data.
+plot.corr.heatmap <- function(expression.data, annotation.data,
+                              n.col.clusters = NULL, n.row.clusters = NULL,
+                              col.groups = character(0),
+                              row.groups = character(0),
+                              value = "seq.norm",
+                              remove.undetected = TRUE,
+                              detection.min.samples = 1L,
+                              detection.inf.seq.norm = 0,
+                              zmin = -1, zmid = 0, zmax = 1,
+                              size.labels = .65, ...){
+
+  # Remove data for miRNAs not detected in sufficiently many sample with
+  # sufficiently many reads, if requested.
+  if(remove.undetected)
+    expression.data %<>%
+      select(mirna, sample, value) %>%
+      filter(seq.norm > detection.inf.seq.norm) %>%
+      select(mirna) %>%
+      group_by(mirna) %>%
+      slice(detection.min.samples) %>%
+      ungroup %>%
+      left_join(expression.data)
+
+  # Get all reference/alternative sample combinations, and get correlations.
+  correlation.data <-
+    expression.data %>%
+    distinct(sample) %>%
+    get.all.combinations(., .) %>%
+    setNames(c("reference", "alternative")) %>%
+    get.all.combinations(expression.data) %>%
+    group_by(reference, alternative) %>%
+    do(tibble(corr = get.corr(., value = value, ...))) %>%
+    ungroup %>%
+    mutate(reference = as.character(reference),
+           alternative = as.character(alternative)) %>%
+    spread(reference, corr) %>%
+    as.data.frame %>%
+    column_to_rownames("alternative") %>%
+    as.matrix
+
+  # Create heatmap.
+  heatmap <-
+    correlation.data %>%
+    main_heatmap(zmin = zmin, zmid = zmid, zmax = zmax,
+                 name = "Pearson's<br>r")
+
+  # Order annotation data according to correlation data.
+  annotation.data <-
+    correlation.data %>%
+    rownames %>%
+    factor(levels = levels(annotation.data$sample)) %>%
+    tibble(sample = .) %>%
+    mutate(order = 1:n()) %>%
+    left_join(annotation.data, .) %>%
+    arrange(order) %>%
+    select(-order)
+
+  # Add colum annotation.
+  for(group.col in col.groups){
+    heatmap %<>%
+      add_col_groups(groups = annotation.data %>%
+                              select(group = group.col) %>%
+                              mutate(group = as.character(group)) %>%
+                              as.data.frame %>%
+                              unlist,
+                     name = group.col %>%
+                            gsub(".", " ", ., fixed = TRUE),
+                     title = "")
+  }
+
+  # Add row annotation.
+  for(group.row in row.groups){
+    heatmap %<>%
+      add_row_groups(groups = annotation.data %>%
+                              select(group = group.row) %>%
+                              mutate(group = as.character(group)) %>%
+                              as.data.frame %>%
+                              unlist,
+                     name = group.row %>%
+                            gsub(".", " ", ., fixed = TRUE),
+                     title = "")
+  }
+
+
+  # Add column and row clustering and label rows with sample names.
+  heatmap %>%
+    add_col_clustering(k = n.col.clusters,
+                       clust_dist = . %>% {as.dist(1 - .)},
+                       name = "column<br>cluster") %>%
+    add_row_clustering(k = n.row.clusters,
+                       clust_dist = . %>% {as.dist(1 - .)},
+                       name = "row<br>cluster",
+                       side = "right") %>%
+    add_row_labels(size = size.labels)
+}
+```
+
+
+```{r function-plot-pca, include = FALSE, eval = TRUE}
+# Define function to generate a sample PCA plot based on expression data.
+plot.pca <- function(expression.data, annotation.data, pcx = "PC1",
+                     pcy = "PC2", scale = TRUE, color = NULL, symbol = NULL){
+
+  # Remove constant miRNAs.
+  expression.data %<>%
+    group_by(mirna) %>%
+    mutate(sdev = sd(seq.norm)) %>%
+    ungroup %>%
+    filter(sdev > 0) %>%
+    select(mirna, sample, seq.norm)
+
+  # Convert to matrix and run PCA (scale by default).
+  pca <-
+    expression.data %>%
+    spread(mirna, seq.norm) %>%
+    as.data.frame %>%
+    column_to_rownames("sample") %>%
+    as.matrix %>%
+    prcomp(scale = scale)
+
+  # Calculate percent variance explained per PC.
+  perc.var <-
+    pca$sdev %>%
+    setNames(colnames(pca$x)) %>%
+    {.^2} %>%
+    {100 * . / sum(.)}
+
+  # Convert color column name to formula for plotly.
+  if(!is.null(color))
+    color %<>%
+      paste0("~", .) %>%
+      as.formula
+
+  # Convert symbol column name to formula for plotly.
+  if(!is.null(symbol))
+    symbol %<>%
+      paste0("~", .) %>%
+      as.formula
+
+  # Convert to `tibble`, annotate, and generate scatter plot.
+  pca$x[, c(pcx, pcy)] %>%
+  as.data.frame %>%
+  rownames_to_column("sample") %>%
+  as_tibble %>%
+  mutate(sample = factor(sample, levels(expression.data$sample))) %>%
+  left_join(annotation.data) %>%
+  plot_ly(type = "scatter", mode = "markers",
+          x = pcx %>%
+              paste0("~", .) %>%
+              as.formula,
+          y = pcy %>%
+              paste0("~", .) %>%
+              as.formula,
+          color = color, symbol = symbol, text = ~as.character(sample)) %>%
+  layout(xaxis = list(title = pcx %>%
+                              paste0(" (", round(perc.var[.], 1),
+                                     " % of total variance)"),
+                      zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(title = pcy %>%
+                              paste0(" (", round(perc.var[.], 1),
+                                     " % of total variance)"),
+                      zeroline = FALSE, showticklabels = FALSE))
+}
+```
+
+
+```{r function-tb2deseq, include = FALSE, eval = TRUE}
+# Define function to convert `tibble` with tidy expression data to
+# `DESeqDataSet`.
+tb2deseq <- function(expression.data, design.formula = ~ condition,
+                     remove.undetected = TRUE, detection.min.samples = 1L,
+                     detection.min.reads = 1L){
+
+  # Extract column data from tibble.
+  column.data <- expression.data %>%
+    select(-mirna, -read.count) %>%
+    distinct
+
+  # Remove data for miRNAs not detected in sufficiently many sample with
+  # sufficiently many reads, if requested.
+  if(remove.undetected)
+    expression.data %<>%
+      select(mirna, sample, read.count) %>%
+      filter(read.count >= detection.min.reads) %>%
+      select(mirna) %>%
+      group_by(mirna) %>%
+      slice(detection.min.samples) %>%
+      ungroup %>%
+      left_join(expression.data)
+
+  # Convert expression data to wide tibble, convert to matrix, and
+  # construct `DESeqDataSet`.
+  expression.data %>%
+    select(mirna, sample, read.count) %>%
+    spread(sample, read.count) %>%
+    as.data.frame %>%
+    column_to_rownames("mirna") %>%
+    as.matrix %>%
+    DESeqDataSetFromMatrix(column.data, design.formula)
+}
+```
+
+
+```{r function-deseq2tb, include = FALSE, eval = TRUE}
+# Define function to convert `DESeqDataSet` to tidy `tibble`.
+deseq2tb <- function(deseq.data, contrast, ...)
+  deseq.data %>%
+    results(contrast = contrast, tidy = TRUE, ...) %>%
+    as_tibble %>%
+    mutate(contrast = paste(contrast[-1], collapse = " vs. "),
+           mirna = row) %>%
+    select(-row) %>%
+    left_join(deseq.data %>%
+              counts(normalized = TRUE) %>%
+              as.data.frame %>%
+              rownames_to_column("mirna") %>%
+              as_tibble %>%
+              gather(sample, norm.counts, -mirna) %>%
+              left_join(deseq.data %>%
+                        colData %>%
+                        as_tibble %>%
+                        select(sample, condition = contrast[1]) %>%
+                        mutate(sample = as.character(sample))) %>%
+              group_by(mirna, condition) %>%
+              summarize(mean.norm.counts = mean(norm.counts)) %>%
+              spread(condition, mean.norm.counts))
+```
+
+
+```{r function-run-deseq2, include = FALSE, eval = TRUE}
+# Define function to run `DESeq2` using tidy `tibbles`.
+# The default choice on whether to put a zero-mean normal prior on the
+# non-intercept coefficients is changed from FALSE to TRUE for comparability
+# with Piwecka, Glazar, and Hernandez-Miranda *et al.*, *Science* 2017;
+# DOI: 10.1126/science.aam8526, where the same setting was used.
+run.deseq2 <- function(data.tb, contrast, betaPrior = TRUE, ...){
+  data.tb %>%
+    tb2deseq(...) %>%
+    DESeq(betaPrior = betaPrior, ...) %>%
+    deseq2tb(contrast, ...)
+}
+```
+
+
+```{r function-plot-ma, include = FALSE, eval = TRUE}
+# Define function to run generate MA plot.
+plot.ma <- function(plot.data, label.mirs = character(0), use.counts = NULL,
+                    sig.level = .05, plot.title = unique(plot.data$condition),
+                    xlab = paste("log10(1 + mean of normalized",
+                                 paste(use.counts, "counts)"),
+                                 sep = ifelse(is.null(use.counts), "", " ")),
+                    ylab = paste0("log2 fold change ",
+                                  unique(plot.data$contrast)),
+                    opacity.labeled.nonsig = .8,
+                    opacity.nonsig = .5, annot.commom.pref = FALSE){
+
+  # Annotate DESeq2 results.
+  plot.data %<>%
+    filter(is.finite(log2FoldChange)) %>%
+    mutate(is.signif = ifelse(is.na(padj), FALSE, padj < sig.level),
+           mirna = as.character(mirna),
+           label.mir = ifelse(mirna %in% label.mirs, mirna, NA),
+           mir.stem = sub(paste0("^", species.id, "-"), "", mirna),
+           label.mir = ifelse(mir.stem %in% label.mirs, mir.stem, label.mir),
+           mir.stem = sub("-[35]p$", "", mir.stem),
+           label.mir = ifelse(mir.stem %in% label.mirs, mir.stem, label.mir),
+           mir.stem = sub("-[[:digit:]]\\+$", "", mir.stem),
+           label.mir = ifelse(mir.stem %in% label.mirs, mir.stem, label.mir),
+           mir.stem = sub("[a-z]$", "", mir.stem),
+           label.mir = ifelse(mir.stem %in% label.mirs, mir.stem, label.mir),
+           label = !is.na(label.mir),
+           label.mir = factor(label.mir, levels = rev(label.mirs))) %>%
+    select(-mir.stem)
+
+  # Replace count axis if specified.
+  if(!is.null(use.counts))
+     plot.data$baseMean <- plot.data %>%
+                           select(use.counts) %>%
+                           unlist
+
+  # Transform x-data (`onclickshow` is not compatible with transformed axis).
+  plot.data %<>% mutate(baseMean = log10(1 + baseMean))
+
+  # Label empty plot and set colorscheme.
+  ma.plot <- plot_ly(marker = list(colorsscale = "Set1")) %>%
+    layout(title = plot.title, legend = list(traceorder = "reversed+grouped"),
+           xaxis = list(title = xlab), yaxis = list(title = ylab))
+
+  # Extract data for significant miRNAs that are not to be labeled.
+  trace.data <- plot.data %>% filter(!label, is.signif)
+
+  # Add significant miRNAs that are not to be labeled (if any) to plot.
+  if(nrow(trace.data))
+    ma.plot %<>%
+      add_trace(data = trace.data, type = "scatter", mode = "markers",
+                x = ~baseMean, y = ~log2FoldChange, text = ~mirna,
+                color = I("grey50"), legendgroup = "signif",
+                name = "other (*)")
+
+  # Extract data for significant miRNAs that are to be labeled.
+  trace.data <- plot.data %>% filter(label, is.signif)
+
+  # Add significant miRNAs that are to be labeled (if any) to plot.
+  if(nrow(trace.data))
+    ma.plot %<>%
+      add_trace(data = trace.data, type = "scatter", mode = "markers",
+                x = ~baseMean, y = ~log2FoldChange, text = ~mirna,
+                color = ~label.mir, legendgroup = "signif")
+
+  # Extract data for non-significant miRNAs that are not to be labeled.
+  trace.data <- plot.data %>% filter(!label, !is.signif)
+
+  # Add non-significant miRNAs that are not to be labeled (if any) to plot.
+  if(nrow(trace.data))
+    ma.plot %<>%
+      add_trace(data = trace.data, type = "scatter", mode = "markers",
+                x = ~baseMean, y = ~log2FoldChange, text = ~mirna,
+                color = I("grey50"), opacity = opacity.nonsig,
+                legendgroup = "nonsignif", name = "other (n.s.)")
+
+  # Extract data for non-significant miRNAs that are to be labeled.
+  trace.data <- plot.data %>% filter(label, !is.signif)
+
+  # Add non-significant miRNAs that are to be labeled (if any) to plot.
+  if(nrow(trace.data))
+    ma.plot %<>%
+      add_trace(data = trace.data, type = "scatter", mode = "markers",
+                x = ~baseMean, y = ~log2FoldChange, text = ~mirna,
+                color = ~label.mir, opacity = opacity.labeled.nonsig,
+                legendgroup = "nonsignif")
+
+  # Remove commom prefix (miRBase species ID) from miRNA IDs unless instructed
+  # otherwise.
+  if(!annot.commom.pref){
+    plot.data %<>%
+      mutate(mirna = mirna %>%
+                     substr(nchar(lcPrefix(.)) + 1, nchar(.)))
+  }
+
+  # Add annotations that can be toggled on or of by clicking.
+  # Put labels to the outside from the points.
+  # Annotate significant miRNAs by default.
+  ma.plot %<>%
+    add_annotations(x = plot.data$baseMean, y = plot.data$log2FoldChange,
+                    text = plot.data$mirna, arrowhead = 0, ax = 40,
+                    ay = 20 * ifelse(plot.data$log2FoldChange > 0, -1, 1),
+                    clicktoshow = "onoff",
+                    visible = plot.data$label & plot.data$is.signif)
+
+  # Enable dragging of the annotations.
+  ma.plot %<>%
+    config(editable = TRUE)
+
+  # Return MA plot.
+  return(ma.plot)
+}
+
+
+#########
+# setup #
+#########
+
+```{r get-sample-data}
+# Compile data passed down by Snakemake into `tibble`.
+sample.data <-
+  tibble(sample = snakemake@params$samples %>%
+                  factor(levels = unique(.)),
+         cell.type = snakemake@params$cell_types %>%
+                      factor(levels = unique(.)),
+#         time.point = snakemake@params$time_points %>%
+#                      factor(levels = unique(.)),
+         condition = snakemake@params$conditions %>%
+                    factor(levels = unique(.)),
+#         replicate = snakemake@params$replicates %>%
+#                     factor(levels = unique(.)),
+         mirdeep2_tsv = snakemake@input$mirdeep2_tsvs)
+```
+
+
+```{r get-species-id}
+# Get species ID passed down by Snakemake.
+species.id = snakemake@params$species_id
+```
+
+
+```{r add-replicate-number}
+sample.data <-
+  sample.data %>%
+  group_by(cell.type, condition) %>%
+  mutate(replicate = 1:n()) %>%
+  ungroup %>%
+  mutate(replicate = as.factor(replicate))
+```
+
+
+```{r get-conditions}
+# Extract conditions from sample data.
+conditions <-
+  levels(sample.data$condition)
+```
+
+
+```{r set-comparisons}
+# Define which condition to compare against each other.
+# Note: This was sent by Cledi:
+# ----------------------------- citation begin --------------------------------
+# Experiment:
+#
+#  Conditions: control and KCl were done in 3 replicates for each cell type
+#  -astrocytes or neurons- DRB and ActD only in 2 replicates each
+#
+#   1. Control (media without any stimulation)
+#
+#   2. KCl 60mM 1hr (stimulation of neuronal activity. IEGs and neuronal
+#   activity related genes should go up)
+#
+#   3. DRB 50uM 11hr/ ActD 100uM 1hr (It is an inhibitor RNA synthesis. No new
+#   RNAs should be transcribed after treating with DRB/ActD)
+#
+#   4. DRB + KCl 1hr/ ActD 100 uM 1hr
+#
+#    What will be interesting to check is:
+#
+#     DE miRNAs between all combinations à Control vs KCl
+#                                          DRB vs DRB+KCl
+#                                          Control vs DRB
+#                                          KCl vs DRB+KCl
+# ------------------------------- citation end ----------------------------------
+comparisons <-
+  conditions[1:4] %>%
+  c(.[c(1, 3, 2, 4)]) %>%
+  matrix(ncol = 2, byrow = TRUE) %>%
+  as_tibble(.name_repair = "minimal") %>%
+  setNames(c("reference", "alternative")) %>%
+  mutate(alternative = factor(alternative, levels = conditions),
+         reference = factor(reference, levels = conditions)) %>%
+  get.all.combinations(sample.data) %>%
+  filter(condition == reference | condition == alternative) %>%
+  group_by(cell.type, reference, alternative) %>%
+  distinct(condition) %>%
+  slice(2) %>%
+  ungroup %>%
+  select(cell.type, reference, alternative)
+
+
+############
+# document #
+############
+```
+
+# Samples
+
+
+The following table lists the samples analyzed in this report:
+
+```{r table-sample-data, results = "asis"}
+# Output sample data as interactive table (dropping file paths).
+sample.data %>%
+  select(-mirdeep2_tsv) %>%
+  print.table(rownames = "sample")
+```
+
+
+# Quantification of known miRNAs
+
+```{r read-mirdeep2-tsvs}
+# Read all miRDeep2 quantification result TSV files into tidy `tibble`.
+mirdeep2.results <-
+  sample.data %>%
+  group_by(sample) %>%
+  do(parse.mirdeep.tsv(.$mirdeep2_tsv)) %>%
+  ungroup %>%
+  mutate(mirna = factor(mirna), precursor = factor(precursor))
+```
+
+
+The following table lists the number of reads per mature miRNA (summed up
+across precursors) per sample:
+
+```{r table-mirna-reads, results = "asis"}
+# Sum up read counts per miRNA and sample and output interactive table.
+mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(read.count = sum(read.count)) %>%
+  ungroup %>%
+  spread(sample, read.count) %>%
+  print.table(rownames = "mirna")
+```
+
+
+The following table lists the same results normalized by sequencing depth:
+
+```{r table-mirna-seq-norm, results = "asis"}
+# Sum up normalized sequences per miRNA and sample and output interactive table.
+mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(seq.norm = sum(seq.norm)) %>%
+  ungroup %>%
+  spread(sample, seq.norm) %>%
+  print.table(rownames = "mirna")
+```
+
+
+# Replicate comparison
+
+The following plots compare the normalized miRNA counts per condition
+across replicates:
+
+```{r plot-replicate-comparisons, results = "asis"}
+# Sum up normalized sequences per miRNA and sample, group replicates,
+# generate scatter/correlation plot matrices using Pearson's r^2 as
+# correlation measure, and combine interactive plots into a single HTML
+# tag list for proper embedding.
+mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(seq.norm = sum(seq.norm)) %>%
+  ungroup %>%
+  left_join(sample.data) %>%
+  group_by(cell.type, condition) %>%
+  filter(length(unique(replicate)) > 1) %>%
+  do(scatter.corr.matrix =
+       plot.scatter.corr.matrix(., corr.fun = function(x, y, method)
+                                                cor(x, y, method = method)^2,
+                                corr.label = "Pearson's r²",
+                                range = mirdeep2.results %$%
+                                        range(seq.norm) %>%
+                                        log10,
+                                title = select(., condition, cell.type) %>%
+                                        distinct %>%
+                                        unlist %>%
+                                        as.character %>%
+                                        paste0(collapse = " - "))) %>%
+  ungroup %$%
+  do.call(tagList, scatter.corr.matrix)
+```
+
+
+# Sample comparison
+
+The following heatmap compares all samples across all detected miRNAs:
+
+```{r plot-sample-heatmap, results = "asis"}
+# Sum up read counts per miRNA and sample and generate interactive correlation
+# heatmap.
+mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(seq.norm = sum(seq.norm)) %>%
+  ungroup %>%
+  plot.corr.heatmap(sample.data, n.row.clusters = length(conditions),
+                    col.groups = "cell.type",
+                    row.groups = "condition")
+```
+
+
+The following scatter plot compares all samples in two-dimensional PCA space:
+
+```{r plot-pca, results = "asis"}
+# Sum up normalized counts per miRNA and sample, log transform, and generate
+# interactive PCA plot.
+mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(seq.norm = log2(1 + sum(seq.norm))) %>%
+  ungroup %>%
+  plot.pca(sample.data, color = "condition", symbol = "cell.type")
+```
+
+
+# Differential miRNA expression analyses
+
+
+The following table lists the comparisons for which differential
+expression analyses were performed:
+
+```{r table-comparisons, results = "asis"}
+# Output comparisons results as interactive table.
+comparisons %>%
+  print.table
+```
+
+
+```{r run-deseq}
+# Sum up read counts per miRNA and sample, assign to and split by
+# comparisons, run DESeq2, and merge back results.
+deseq2.results <- mirdeep2.results %>%
+  group_by(sample, mirna) %>%
+  summarize(read.count = sum(read.count)) %>%
+  ungroup %>%
+  left_join(select(sample.data, sample, cell.type, condition)) %>%
+  left_join(comparisons) %>%
+  filter(reference == condition | alternative == condition) %>%
+  group_by(cell.type, reference, alternative) %>%
+  do(run.deseq2(select(., -cell.type, -reference, -alternative),
+                contrast = select(., alternative, reference) %>%
+                           distinct %>%
+                           unlist %>%
+                           as.character %>%
+                           c("condition", .))) %>%
+  ungroup %>%
+  select(-alternative) %>%
+  mutate(mirna = factor(mirna, levels = levels(mirdeep2.results$mirna)),
+         reference = factor(reference, levels = levels(sample.data$condition)),
+         contrast = factor(contrast,
+                           levels = comparisons %>%
+                                    distinct(alternative, reference) %$%
+                                    paste0(alternative, " vs. ", reference)))
+```
+
+
+The following plots shows DESeq2 results for those comparisons
+highlighting some candidate miRNAs:
+
+```{r plot-deseq, results = "asis"}
+# Plot DESeq2 results per cell type and merge the MA plots.
+# Note: `condition` here is the condition for which the test was performed,
+# not the 'condition' in the sense of treatment as elsewhere in this report.
+# This is due to the way stuff was named in the previous report for Cledi and
+# the decision not to change the functions.
+deseq2.results %>%
+  mutate(condition = cell.type) %>% # <-- see note above!
+  group_by(condition, contrast) %>%
+  do(ma.plot = plot.ma(., mirs.to.label, use.counts = .$reference %>%
+                                                      unique %>%
+                                                      as.character)) %$%
+  tagList(ma.plot)
+```
+
+
+The following table lists the raw data underlying the above plot:
+
+```{r table-deseq-results, results = "asis"}
+# Output DESeq2 results as interactive table re-ordering the columns.
+# Note: The distinct + left_join is just an ugly hack to get these three
+# columns in the front without dropping any column or having to spell them
+# all out for select. There probably is a better way, but that's it. ;-)
+deseq2.results %>%
+  distinct(cell.type, contrast, mirna) %>%
+  left_join(deseq2.results) %>%
+  print.table
+```
+
+fhfty

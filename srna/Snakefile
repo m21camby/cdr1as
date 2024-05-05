@@ -1,0 +1,592 @@
+# Small RNA-seq analyses for Cledi Snakefile
+#
+# Copyright (C) 2018 - 2019  Marcel Schilling
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public
+# License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
+
+#######################
+# general information #
+#######################
+
+# file:        Snakefile
+# created:     2018-11-21
+# last update: 2019-09-24
+# author:      Marcel Schilling <marcel.schilling@mdc-berlin.de>
+# purpose:     automate pipeline analyzing sRNA-seq data for Cledi
+
+
+######################################
+# change log (reverse chronological) #
+######################################
+
+# 2019-09-24: adjusted to new data with Seung
+# 2019-02-07: refactored sample definition into configuration YAML file
+# 2018-11-22: added passing of species ID to report
+#             added quantification of known miRNAs with miRDeep2
+#             added symlinking of FASTA file with mature miRNAs
+#             extracted from miRBase
+#             added symlinking of FASTA file with miRNA hairpins
+#             extracted from miRBase
+#             added symlinking of bowtie index files for genome
+#             reference
+#             added symlinking of FASTA file with genome reference
+#             made Snakemake aware of multithreading
+# 2018-11-21: added 3' adapter trimming of sRNA-reads (including quality
+#             trimming & trimmed length filtering)
+#             added symlinking of FASTQ files with raw sRNA-seq reads
+#             initial version (define samples & generate report)
+
+
+##############
+# parameters #
+##############
+
+# Get names of sRNA-seq and corresponding cell types, time points, genotypes,
+# replicate numbers, and paths to original FASTQ files with raw sRNA-seq reads
+# from sample configuration file.
+configfile: "samples.yaml"
+
+#rule dummy:
+#  script: print [(run, cell_type, foo) for run in config for cell_type in config[run]["samples"] for foo in config[run]["samples"][cell_type]]
+
+runs, cell_types, conditions, samples, orig_fastqs = zip(
+    *[(run, cell_type, condition, sample_id, os.path.join(
+         config[run]["fastq"]["directory"],
+         f"{cell_type}_{condition}" + config[run]["fastq"]["directory_suffix"],
+         config[run]["fastq"]["directory_prefix"]
+         + str(config[run]["samples"][cell_type][condition][sample_id]).zfill(2),
+         f"{sample_id}_S" 
+         + str(config[run]["samples"][cell_type][condition][sample_id])
+         + config[run]["fastq"]["suffix"]))
+      for run in config
+      for cell_type in config[run]["samples"]
+      for condition in config[run]["samples"][cell_type]
+      for sample_id in config[run]["samples"][cell_type][condition]
+     ]
+  )
+
+# Define number of threads to use per process.
+threads = 12
+
+# Define sequence of 3' adapter used for the sRNA-seq library preparation.
+# According to Cledi the ClonTech SMARTer Small RNA Library Preparation Kit was
+# used and according to Asija this is the corresponding 3' adapter sequence.
+adapter3 = "TGGAATTCTCGGGTGCCAAGG"
+
+# Define PHRED encoding used in FASTQ files with RNA-seq reads.
+phred_encoding = "i1.8"
+
+# Define minimum PHRED quality score to use for 3' trimming of RNA-seq reads.
+min_phred = 30
+
+# Define minimum read length of preprocessed reads.
+min_read_length = 18
+
+# Define sequence of 3' adapter to trim for poly(A) tail removal.
+adapter3polyA = "AAAAAAAAAA"
+
+# Define genome assembly.
+genome_assembly = "mm10"
+
+# Define file extension (without leading dot (`.`)) of bowtie index files.
+bowtie_index_extensions = [f"{pref}.ebwt"
+                           for pref in [f"{num}" for num in range(1, 5)]
+                                       + [f"rev.{num}" for num in range(1, 3)]]
+
+# Define miRBase version to use for quantification of known miRNAs.
+mirbase_version = 21
+
+# Define suffix (without leading dot (`.`)) used for original FASTA
+# files with miRNA hairpins and matur miRNAs extracted from miRBase.
+mirbase_fasta_suffix = f"miRBase{mirbase_version}.fa"
+
+# Define miRBase species ID to use for miRDeep2.
+species_id = "mmu"
+
+# Define file name stem (incl. leading and final dots (`.`s)) of miRDeep2
+# output files.
+mirdeep_output_stem = f".mirbase{mirbase_version}.{genome_assembly}.mirdeep2."
+
+
+#########
+# paths #
+#########
+
+sample_to_condition_csv = "20190823-KCl_treatments_layout.csv"
+
+# Define path of directory to save reads in.
+fastq_dir = "reads"
+
+# Define path of directory to save raw reads in.
+fastq_raw_dir = os.path.join(fastq_dir, "raw")
+
+# Define paths of symlinks to FASTQ files with raw sRNA-seq reads.
+fastqs_raw = [os.path.join(fastq_raw_dir, sample + ".fastq.gz")
+              for sample in samples]
+
+# Define path of directory to save 3' adapter trimmed reads in.
+fastq_adapter3trimmed_dir = os.path.join(fastq_dir,
+                                         "three_prime_adapter_trimmed")
+
+# Define paths of FASTQ files with 3' adapter trimmed RNA-seq reads.
+fastqs_adapter3trimmed = [os.path.join(fastq_adapter3trimmed_dir,
+                                       f"{sample}.adapter3trimmed.fastq.gz")
+                          for sample in samples]
+
+# Define path of directory to save poly(A) tail removed reads in.
+fastq_polyAtrimmed_dir = os.path.join(fastq_dir, "polyA_tail_removed")
+
+# Define paths of FASTQ files with poly(A) tail removed RNA-seq reads.
+fastqs_polyAtrimmed = [os.path.join(
+                           fastq_polyAtrimmed_dir,
+                           f"{sample}.adapter3trimmed.polyAtrimmed.fastq.gz"
+                       )
+                       for sample in samples]
+
+# Define path of directory to save 5' overhang removed reads in.
+fastq_overhang5removed_dir = os.path.join(
+    fastq_dir, "template_switching_five_prime_overhang_removed"
+)
+
+# Define paths of FASTQ files with 5' overhang removed RNA-seq reads.
+fastqs_overhang5removed = [
+    os.path.join(
+        fastq_overhang5removed_dir,
+        f"{sample}.adapter3trimmed.polyAtrimmed.overhang5removed.fastq.gz"
+    )
+    for sample in samples
+]
+
+# Define path of directory to save preprocessed reads in.
+fastq_preprocessed_dir = os.path.join(fastq_dir, "preprocessed")
+
+# Define paths of symlinks to FASTQ files with preprocessed reads.
+fastqs_preprocessed = [os.path.join(fastq_preprocessed_dir,
+                                    f"{sample}.preprocessed.fastq.gz")
+                       for sample in samples]
+
+# Define path of directory containing original bowtie index files for
+# genome reference.
+orig_genome_bowtie_index_dir = os.path.join("/data", "rajewsky", "indices",
+                                            f"{genome_assembly}_bowtie_1.1.1")
+
+# Define path of original bowtie index for genome reference (without
+# extension).
+orig_genome_bowtie_index = os.path.join(orig_genome_bowtie_index_dir,
+                                        genome_assembly)
+
+# Define paths of original FASTA file with genome reference.
+orig_genome_fasta = f"{orig_genome_bowtie_index}.fa"
+
+# Define path of directory to save mapping data in.
+mapping_dir = "mapping"
+
+# Define path of directory to save bowtie mapping data in.
+bowtie_dir = os.path.join(mapping_dir, "bowtie")
+
+# Define path of directory to save bowtie indices in.
+bowtie_index_dir = os.path.join(bowtie_dir, "indices")
+
+# Define path of directory to save bowtie index for genome reference in.
+genome_bowtie_index_dir = os.path.join(bowtie_index_dir, genome_assembly)
+
+# Define path of bowtie index for genome reference (without extension).
+genome_bowtie_index = os.path.join(genome_bowtie_index_dir, genome_assembly)
+
+# Define paths of symlinks to FASTA file with genome reference.
+genome_fasta = f"{genome_bowtie_index}.fa"
+
+# Define paths of original bowtie index files for genome reference.
+orig_genome_bowtie_index_files = [f"{orig_genome_bowtie_index}.{extension}"
+                                  for extension in bowtie_index_extensions]
+
+# Define paths of symlinks to bowtie index files for genome reference.
+genome_bowtie_index_files = [f"{genome_bowtie_index}.{extension}"
+                             for extension in bowtie_index_extensions]
+
+# Define path of directory containing original FASTA files with miRNA
+# hairpins and mature miRNAs extracted from miRBase.
+orig_mirbase_dir = os.path.join("/data", "rajewsky", "annotation", genome_assembly)
+
+# Define path of original FASTA file with miRNA hairpins extracted from
+# miRBase.
+orig_hairpin_fasta = os.path.join(
+    orig_mirbase_dir, f"{genome_assembly}.hairpin.{mirbase_fasta_suffix}"
+    )
+
+# Define path of original FASTA file with mature miRNAs extracted from miRBase.
+orig_mature_fasta = os.path.join(
+    orig_mirbase_dir, f"{genome_assembly}.mature.{mirbase_fasta_suffix}"
+    )
+
+# Define path of directory to save quantification data in.
+quantification_dir = "quantification"
+
+# Define path of directory to save miRDeep2 data in.
+mirdeep2_dir = os.path.join(quantification_dir, "mirdeep2")
+
+# Define path of directory to save miRDeep2 references in.
+mirdeep2_reference_dir = os.path.join(mirdeep2_dir, "references")
+
+# Define path of symlink to FASTA file with miRNA hairpins extracted
+# from miRBase.
+hairpin_fasta = os.path.join(
+    mirdeep2_reference_dir, f"mirbase{mirbase_version}.{genome_assembly}.hairpin.fa"
+    )
+
+# Define path of symlink to FASTA file with mature miRNAs extracted from
+# miRBase.
+mature_fasta = os.path.join(
+    mirdeep2_reference_dir, f"mirbase{mirbase_version}.{genome_assembly}.mature.fa"
+    )
+
+# Define path of directory to save miRDeep2 results in.
+mirdeep2_result_dir = os.path.join(mirdeep2_dir, "results")
+
+# Define path of directory to save miRDeep2 logs in.
+mirdeep2_log_dir = os.path.join(mirdeep2_dir, "logs")
+
+# Define path of directory to save miRDeep2 mapper module logs in.
+mirdeep2_mapper_log_dir = os.path.join(mirdeep2_log_dir, "mapper")
+
+# Define path of directory to save miRDeep2 quantifier module logs in.
+mirdeep2_quantifier_log_dir = os.path.join(mirdeep2_log_dir, "quantifier")
+
+# Define paths of miRDeep2 output TSV files with quantification results
+# for known miRNAs.
+mirdeep2_quantification_tsvs = expand(
+    os.path.join(mirdeep2_result_dir,
+                 "{sample}" + f"{mirdeep_output_stem}tsv.gz"),
+    sample=samples
+    )
+
+# Define paths of miRDeep2 mapper log files.
+mirdeep2_mapper_logs = expand(
+    os.path.join(mirdeep2_mapper_log_dir,
+                 "{sample}" + f"{mirdeep_output_stem}mapper.log"),
+    sample=samples
+    )
+
+# Define paths of miRDeep2 bowtie mapper log files.
+mirdeep2_mapper_bowtie_logs = expand(
+    os.path.join(mirdeep2_mapper_log_dir,
+                 "{sample}" + f"{mirdeep_output_stem}mapper.bowtie.log"),
+    sample=samples
+    )
+
+# Define paths of miRDeep2 mapper mapper log files.
+mirdeep2_mapper_mapper_logs = expand(
+    os.path.join(mirdeep2_mapper_log_dir,
+                 "{sample}" + f"{mirdeep_output_stem}mapper.mapper.log"),
+    sample=samples
+    )
+
+# Define paths of miRDeep2 quantification log files.
+mirdeep2_quantifier_logs = expand(
+    os.path.join(
+        mirdeep2_quantifier_log_dir,
+        "{sample}" + f"{mirdeep_output_stem}quantifier.log"),
+    sample=samples
+    )
+
+# Define path of R Markdown file to generate analyses report from.
+report_rmd = "report.Rmd"
+
+# Define path of HTML file to render analyses report to.
+report_html = "report.html"
+
+
+#############
+# functions #
+#############
+
+# Define function to parameterize a command.
+def parameterize(command):
+    """Parameterize a command.
+
+    Positional arguments:
+        command -- List of command and parameters (strings) to combine.
+
+    Return value:
+        A single string combining the command and parameter strings via
+        spaces.
+    """
+
+    # Join all strings in command list by spaces.
+    # Explicitly convert list elements to strings to allow passing of
+    # numerical arguments as parameters.
+    command = " ".join([str(part) for part in command])
+
+    # Return string with parameterized command.
+    return(command)
+
+
+# Define function to join commands into a pipeline.
+def pipeline(commands):
+    """Join commands into pipeline.
+
+    Positional arguments:
+        commands -- List of list of commands and parameters (strings) to join.
+
+    Return value:
+        A single string combining the command and parameter strings via
+        spaces and pipe symbols.
+    """
+
+    # Parameterize all commands in list and join by pipe symbol.
+    command = " | ".join([parameterize(command) for command in commands])
+
+    # Return string with parameterized command.
+    return(command)
+
+
+############
+# commands #
+############
+
+# Define command to use to create symbolic links.
+symlink = parameterize(["ln", "--symbolic"])
+
+# Define command to use to tun flexbar.
+flexbar = parameterize(["flexbar", "--zip-output GZ",
+                        f"--qtrim-format '{phred_encoding}'",
+                        f"--qtrim-threshold {min_phred}",
+                        f"--min-read-length {min_read_length}"])
+
+# Define command to use to trim 3' adapter.
+trim3adapter = parameterize([flexbar, "--adapter-trim-end RIGHT",
+                             f"--adapter-seq {adapter3}"])
+
+# Define command to use to remove poly(A) tail.
+trim_polyA = parameterize([flexbar, "--adapter-trim-end RIGHT",
+                           f"--adapter-seq {adapter3polyA}"])
+
+# Define command to use to decompress data.
+decompress = "zcat"
+
+# Define command to use to remove 5' overhang.
+remove_overhang5 = parameterize(["sed", "'2~2s/...//'"])
+
+# Define command to use to compress data.
+compress = parameterize(["pigz", f"--processes {threads}", "--best"])
+
+# Define command to use to quantify known miRNAs with miRDeep2.
+quantify_with_mirdeep2 = parameterize(["./quantify_with_mirdeep2.sh",
+                                       min_read_length, species_id])
+
+
+#####################
+# snakemake options #
+#####################
+
+# Ensure bash is used for shell commands.
+shell.executable("/bin/bash")
+
+
+###################
+# read input data #
+###################
+
+# Read sample-to-condition mapping from CSV file provided by Cledi.
+with open(sample_to_condition_csv) as file:
+  sample2condition = {sample: condition
+                      for (sample, condition) in
+                        [tuple(str.split(line, ',')[:2])
+                         for line in file.readlines()
+                        ]
+                      if sample in samples
+                     }
+
+# Get sample conditions in the same order as the sample IDs.
+conditions = [sample2condition[sample] for sample in samples]
+
+
+##################
+# default target #
+##################
+
+# If no other target was specified, render analyses report to HTML.
+rule all:
+  input: report_html
+
+
+##################
+# get input data #
+##################
+
+# Symlink original FASTQ file with raw sRNA-seq reads to raw reads directory.
+rule symlink_fastq:
+    input: lambda wildcards: orig_fastqs[samples.index(wildcards.sample)]
+    output: os.path.join(fastq_raw_dir, "{sample}.fastq.gz")
+    shell: parameterize([symlink, "'{input}'", "'{output}'"])
+
+# Symlink FASTA file with genome reference and corresponding bowtie
+# index files.
+rule symlink_genome_bowtie_index:
+    input: orig_genome_bowtie_index + ".{extension}"
+    output: genome_bowtie_index + ".{extension}"
+    shell: parameterize([symlink, "'{input}'", "'{output}'"])
+
+# Symlink FASTA files with miRNA hairpins and mature miRNAs extracted
+# from miRBase.
+rule symlink_mirbase_fasta:
+    input:
+        os.path.join(orig_mirbase_dir,
+                     genome_assembly + ".{feature}." + mirbase_fasta_suffix)
+    output:
+        os.path.join(mirdeep2_reference_dir,
+                     f"mirbase{mirbase_version}.{genome_assembly}"
+                     + ".{feature}.fa")
+    shell: parameterize([symlink, "'{input}'", "'{output}'"])
+
+
+#####################
+# pre-process reads #
+#####################
+
+# Trim 3' adapters from reads.
+rule trim3adapter:
+    input: os.path.join(fastq_raw_dir, "{sample}.fastq.gz")
+    output:
+        os.path.join(fastq_adapter3trimmed_dir,
+                     "{sample}.adapter3trimmed.fastq.gz")
+    log:
+        os.path.join(fastq_adapter3trimmed_dir,
+                     "{sample}.adapter3trimmed.log")
+    threads: threads
+    params:
+        target = os.path.join(fastq_adapter3trimmed_dir,
+                              "{sample}.adapter3trimmed")
+    shell:
+        parameterize([trim3adapter, "--threads {threads}",
+        "--reads '{input}'", "--target '{params.target}'"])
+
+# Remove poly(A) tails from reads.
+rule trim_polyA:
+    input:
+        os.path.join(fastq_adapter3trimmed_dir,
+                     "{sample}.adapter3trimmed.fastq.gz")
+    output:
+        os.path.join(fastq_polyAtrimmed_dir,
+                     "{sample}.adapter3trimmed.polyAtrimmed.fastq.gz")
+    log:
+        os.path.join(fastq_polyAtrimmed_dir,
+                     "{sample}.adapter3trimmed.polyAtrimmed.log")
+    threads: threads
+    params:
+        target = os.path.join(fastq_polyAtrimmed_dir,
+                              "{sample}.adapter3trimmed.polyAtrimmed")
+    shell:
+        parameterize([trim_polyA, "--threads {threads}",
+        "--reads '{input}'", "--target '{params.target}'"])
+
+# Remove 5' overhang from reads.
+rule remove_overhang5:
+    input:
+        os.path.join(fastq_polyAtrimmed_dir,
+                     "{sample}.adapter3trimmed.polyAtrimmed.fastq.gz")
+    output:
+        os.path.join(
+            fastq_overhang5removed_dir,
+            "{sample}.adapter3trimmed.polyAtrimmed.overhang5removed.fastq.gz"
+        )
+    threads: threads
+    shell:
+        pipeline([[decompress, "'{input}'"], [remove_overhang5],
+                  [compress, "> '{output}'"]])
+
+# Symlink FASTQ files with preprocessed reads to preprocessed reads directory.
+rule symlink_fastq_preprocessed:
+    input:
+        os.path.join(
+            fastq_overhang5removed_dir,
+            "{sample}.adapter3trimmed.polyAtrimmed.overhang5removed.fastq.gz"
+        )
+    output:
+        os.path.join(fastq_preprocessed_dir, "{sample}.preprocessed.fastq.gz")
+    shell:
+        parameterize([symlink,
+                      "'"
+                      + os.path.relpath("{input}", fastq_overhang5removed_dir)
+                      + "'",
+                      "'{output}'"])
+
+
+###################
+# quantify miRNAs #
+###################
+
+# Quantify known miRNAs using miRDeep2.
+rule quantify_with_mirdeep2:
+    input:
+        reads = os.path.join(fastq_preprocessed_dir,
+                             "{sample}.preprocessed.fastq.gz"),
+        genome = os.path.join(genome_bowtie_index_dir, "{assembly}.fa"),
+        index_files = [os.path.join(genome_bowtie_index_dir,
+                                    "{assembly}." + extension)
+                       for extension in bowtie_index_extensions],
+        hairpins = os.path.join(mirdeep2_reference_dir,
+                                "mirbase{version}.{assembly}.hairpin.fa"),
+        matures = os.path.join(mirdeep2_reference_dir,
+                               "mirbase{version}.{assembly}.mature.fa"),
+    output:
+        os.path.join(mirdeep2_result_dir,
+                     "{sample}.mirbase{version}.{assembly}.mirdeep2.tsv.gz")
+    log:
+        mapper = os.path.join(
+            mirdeep2_mapper_log_dir,
+           "{sample}.mirbase{version}.{assembly}.mirdeep2.mapper.log"
+           ),
+        mapper_bowtie = os.path.join(
+            mirdeep2_mapper_log_dir,
+           "{sample}.mirbase{version}.{assembly}.mirdeep2.mapper.bowtie.log"
+           ),
+        mapper_mapper = os.path.join(
+            mirdeep2_mapper_log_dir,
+           "{sample}.mirbase{version}.{assembly}.mirdeep2.mapper.mapper.log"
+           ),
+        quantifier = os.path.join(
+            mirdeep2_quantifier_log_dir,
+           "{sample}.mirbase{version}.{assembly}.mirdeep2.quantifier.log"
+           )
+    threads: threads
+    params:
+        index = os.path.join(genome_bowtie_index_dir, "{assembly}")
+    shell:
+        parameterize(
+            [quantify_with_mirdeep2, "{threads}", "'{params.index}'",
+             "'{input.hairpins}'", "'{input.matures}'", "'{input.reads}'",
+             "'{output}'", "'{log.mapper}'", "'{log.mapper_bowtie}'",
+             "'{log.mapper_mapper}'", "'{log.quantifier}'"]
+            )
+
+
+###################
+# generate report #
+###################
+
+# Render report to HTML passing down sample metadata.
+rule render_report:
+    input:
+        rmd = report_rmd,
+        mirdeep2_tsvs = mirdeep2_quantification_tsvs
+    output: report_html
+    params:
+        samples = samples,
+        cell_types = cell_types,
+        conditions = conditions,
+        species_id = species_id
+    script: report_rmd
