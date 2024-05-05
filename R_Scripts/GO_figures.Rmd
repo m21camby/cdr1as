@@ -1,0 +1,767 @@
+---
+title: "GO_final"
+author: "Skim"
+date: "5/24/2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float: false
+    code_folding: hide
+---
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+.libPaths(c("/data/rajewsky/home/skim/R/usr_lib_Seurat/", "/data/rajewsky/home/skim/R/usr_lib_v4/"))
+#.libPaths()
+unloadNamespace("mgcv")
+unloadNamespace("Matrix")
+
+
+library(ggplot2)
+library(gridExtra)
+library(ggrepel)
+library(dplyr)
+library(cowplot)
+library(paletteer)
+library(stringr)
+library(scales)
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+cor_mat <- readRDS("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/DGEm/WTN_batch_corr_nested_DGEm.rda")
+
+
+res1_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_UP", "_BP.rda"))
+res1_bp_up <- res1_bp_up[which(res1_bp_up$p.value_elim < 0.05 & res1_bp_up$Annotated < 1000 & res1_bp_up$Annotated > 30), ] 
+res1_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KO_WT_DOWN", "_BP.rda"))
+res1_bp_down <- res1_bp_down[which(res1_bp_down$p.value_elim < 0.05 & res1_bp_down$Annotated < 1000 & res1_bp_down$Annotated > 30), ] 
+
+res2_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_UP", "_BP.rda"))
+res2_bp_up <- res2_bp_up[which(res2_bp_up$p.value_elim < 0.05 & res2_bp_up$Annotated < 1000 & res2_bp_up$Annotated > 30), ] 
+res2_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","WTm7oe_WT_DOWN", "_BP.rda"))
+res2_bp_down <- res2_bp_down[which(res2_bp_down$p.value_elim < 0.05 & res2_bp_down$Annotated < 1000 & res2_bp_down$Annotated > 30), ] 
+
+res3_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_UP", "_BP.rda"))
+res3_bp_up <- res3_bp_up[which(res3_bp_up$p.value_elim < 0.05 & res3_bp_up$Annotated < 1000 & res3_bp_up$Annotated > 30), ] 
+res3_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_KO_DOWN", "_BP.rda"))
+res3_bp_down <- res3_bp_down[which(res3_bp_down$p.value_elim < 0.05 & res3_bp_down$Annotated < 1000 & res3_bp_down$Annotated > 30), ] 
+
+res4_bp_up <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_UP", "_BP.rda"))
+res4_bp_up <- res4_bp_up[which(res4_bp_up$p.value_elim < 0.05 & res4_bp_up$Annotated < 1000 & res4_bp_up$Annotated > 30), ] 
+res4_bp_down <- readRDS(file = paste0("/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/", "GO_Analysis_","KOm7oe_WT_DOWN", "_BP.rda"))
+res4_bp_down <- res4_bp_down[which(res4_bp_down$p.value_elim < 0.05 & res4_bp_down$Annotated < 1000 & res4_bp_down$Annotated > 30), ] 
+
+res1.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res1.rda")
+res2.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res2.rda")
+res3.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_nested_corrected_res3.rda")
+res4.df <- readRDS(file = "/data/rajewsky/projects/cdr1as_ko_snRNA/codes_github/cdr1as/Results/DESeq2_WTN_batch_corrected_res4.rda")
+
+
+
+
+# up-genes
+set1 <- res1.df[which(res1.df$log2FoldChange > 0.5 &  res1.df$padj < 0.05), ]
+set2 <- res2.df[which(res2.df$log2FoldChange > 0.5 &  res2.df$padj < 0.05), ]
+set3 <- res3.df[which(res3.df$log2FoldChange > 0.5 &  res3.df$padj < 0.05), ]
+set4 <- res4.df[which(res4.df$log2FoldChange > 0.5 &  res4.df$padj < 0.05), ] 
+
+genes1 <- c(set1, set2, set3, set4) %>% unique()
+
+# down-genes
+set5 <- res1.df[which(res1.df$log2FoldChange < -0.5 &  res1.df$padj < 0.05), ]
+set6 <- res2.df[which(res2.df$log2FoldChange < -0.5 &  res2.df$padj < 0.05), ]
+set7 <- res3.df[which(res3.df$log2FoldChange < -0.5 &  res3.df$padj < 0.05), ]
+set8 <- res4.df[which(res4.df$log2FoldChange < -0.5 &  res4.df$padj < 0.05), ]
+
+# res4 specific
+specific_genes_up <- Reduce(setdiff, list(set4$gene,set1$gene,set2$gene,set3$gene)) 
+specific_genes_down <- Reduce(setdiff, list(set8$gene,set5$gene,set6$gene,set7$gene)) 
+
+# res3 specific
+specific_genes_up2 <- Reduce(setdiff, list(set3$gene,set1$gene,set2$gene,set4$gene)) 
+specific_genes_down2 <- Reduce(setdiff, list(set7$gene,set5$gene,set6$gene,set8$gene)) 
+
+# res2 specific
+specific_genes_up3 <- Reduce(setdiff, list(set2$gene,set1$gene,set3$gene,set4$gene)) 
+specific_genes_down3 <- Reduce(setdiff, list(set6$gene,set5$gene,set7$gene,set8$gene))
+```
+
+# res1 up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res1_bp_up)
+```
+
+# res1 down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res1_bp_down)
+```
+
+# res2 up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res2_bp_up)
+```
+
+# res2 down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res2_bp_down)
+```
+
+# res3 up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res3_bp_up)
+```
+
+# res3 down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res3_bp_down)
+```
+
+# res4 up
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res4_bp_up)
+```
+
+# res4 down
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+DT::datatable(res4_bp_down)
+```
+
+# res2 down specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down_specific <- res2_bp_down %>% filter(!Term %in% c(res4_bp_down$Term, res3_bp_down$Term, res1_bp_down$Term))
+res2_bp_down_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res2_bp_down_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res2_bp_down_specific[i, "genes"], ","))
+  res2_bp_down_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_down3]) / length(genes)
+}
+
+DT::datatable(res2_bp_down_specific)
+```
+
+# res2 up specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_up_specific <- res2_bp_up %>% filter(!Term %in% c(res4_bp_up$Term,res3_bp_down$Term, res1_bp_down$Term))
+res2_bp_up_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res2_bp_up_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res2_bp_up_specific[i, "genes"], ","))
+  res2_bp_up_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_up3]) / length(genes)
+}
+
+DT::datatable(res2_bp_up_specific)
+```
+
+# res3 down specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down_specific <- res3_bp_down %>% filter(!Term %in% c(res4_bp_down$Term, res2_bp_down$Term, res1_bp_down$Term))
+res3_bp_down_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res3_bp_down_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res3_bp_down_specific[i, "genes"], ","))
+  res3_bp_down_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_down2]) / length(genes)
+}
+
+DT::datatable(res3_bp_down_specific)
+```
+
+# res3 up specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up_specific <- res3_bp_up %>% filter(!Term %in% c(res4_bp_up$Term,res2_bp_down$Term, res1_bp_down$Term))
+res3_bp_up_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res3_bp_up_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res3_bp_up_specific[i, "genes"], ","))
+  res3_bp_up_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_up2]) / length(genes)
+}
+
+DT::datatable(res3_bp_up_specific)
+```
+
+# res4 down specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down_specific <- res4_bp_down %>% filter(!Term %in% c(res3_bp_down$Term,res2_bp_down$Term, res1_bp_down$Term))
+res4_bp_down_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res4_bp_down_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res4_bp_down_specific[i, "genes"], ","))
+  res4_bp_down_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_down]) / length(genes)
+}
+
+DT::datatable(res4_bp_down_specific)
+```
+
+# res4 up specific
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up_specific <- res4_bp_up %>% filter(!Term %in% c(res3_bp_up$Term, res2_bp_up$Term, res1_bp_up$Term))
+res4_bp_up_specific$genes_split <- "genes"
+
+for(i in c(1: nrow(res4_bp_up_specific))){
+  #print(i)
+  genes <- unlist(strsplit(res4_bp_up_specific[i, "genes"], ","))
+  res4_bp_up_specific[i, "genes_split"] <- length(genes[genes %in% specific_genes_up]) / length(genes)
+}
+
+DT::datatable(res4_bp_up_specific)
+
+```
+
+
+
+# 1. down-regulated
+
+## synap
+
+### synap res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("synap", res1_bp_down$Term), ]
+```
+
+### synap res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("synap", res2_bp_down$Term), ]
+```
+
+### synap res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("synap", res3_bp_down$Term), ]
+```
+
+### synap res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("synap", res4_bp_down$Term), ]
+
+```
+
+## axon
+
+### axon res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("axon", res1_bp_down$Term), ]
+```
+
+### axon res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("axon", res2_bp_down$Term), ]
+```
+
+### axon res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("axon", res3_bp_down$Term), ]
+```
+
+### axon res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("axon", res4_bp_down$Term), ]
+```
+
+
+## startle
+
+### startle res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("startle", res1_bp_down$Term), ]
+```
+
+### startle res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("startle", res2_bp_down$Term), ]
+```
+
+### startle res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("startle", res3_bp_down$Term), ]
+```
+
+### startle res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("startle", res4_bp_down$Term), ]
+```
+
+## exocytosis
+
+### exocytosis res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("exocytosis", res1_bp_down$Term), ]
+```
+
+### exocytosis res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("exocytosis", res2_bp_down$Term), ]
+```
+
+### exocytosis res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("exocytosis", res3_bp_down$Term), ]
+```
+
+### exocytosis res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("exocytosis", res4_bp_down$Term), ]
+```
+
+
+## glutamat
+
+### exocytosis res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("glutamat", res1_bp_down$Term), ]
+```
+
+### glutamat res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("glutamat", res2_bp_down$Term), ]
+```
+
+### glutamat res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("glutamat", res3_bp_down$Term), ]
+```
+
+### glutamat res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("glutamat", res4_bp_down$Term), ]
+```
+
+## GABA
+
+### GABA res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("GABA", res1_bp_down$Term), ]
+```
+
+### GABA res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("GABA", res2_bp_down$Term), ]
+```
+
+### GABA res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("GABA", res3_bp_down$Term), ]
+```
+
+### GABA res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("GABA", res4_bp_down$Term), ]
+```
+
+## endocyto
+
+### endocyto res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_down[grepl("endocyto", res1_bp_down$Term), ]
+```
+
+### endocyto res2
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_down[grepl("endocyto", res2_bp_down$Term), ]
+```
+
+### endocyto res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_down[grepl("endocyto", res3_bp_down$Term), ]
+```
+
+### endocyto res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_down[grepl("endocyto", res4_bp_down$Term), ]
+```
+
+# 2. up-regulated
+
+## exocytosis
+
+### exocytosis res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_up[grepl("exocytosis", res1_bp_up$Term), ]
+```
+
+### exocytosis res2 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_up[grepl("exocytosis", res2_bp_up$Term), ]
+```
+
+### exocytosis res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("exocytosis", res3_bp_up$Term), ]
+```
+
+### exocytosis res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("exocytosis", res4_bp_up$Term), ]
+```
+
+## endocyto
+
+### endocyto res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_up[grepl("endocyto", res1_bp_up$Term), ]
+```
+
+### endocyto res2 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_up[grepl("endocyto", res2_bp_up$Term), ]
+```
+
+### endocyto res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("endocyto", res3_bp_up$Term), ]
+```
+
+### endocyto res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("endocyto", res4_bp_up$Term), ]
+```
+
+
+## SMAD
+
+### SMAD res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_up[grepl("SMAD", res1_bp_up$Term), ]
+```
+
+### SMAD res2 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_up[grepl("SMAD", res2_bp_up$Term), ]
+```
+
+### SMAD res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("SMAD", res3_bp_up$Term), ]
+```
+
+### SMAD res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("SMAD", res4_bp_up$Term), ]
+```
+
+## axon
+
+### axon res1 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res1_bp_up[grepl("axon", res1_bp_up$Term), ]
+```
+
+### axon res2 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res2_bp_up[grepl("axon", res2_bp_up$Term), ]
+```
+
+### axon res3 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res3_bp_up[grepl("axon", res3_bp_up$Term), ]
+```
+
+### axon res4 
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+res4_bp_up[grepl("axon", res4_bp_up$Term), ]
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+# Terms <- c("sensory perception of mechanical stimulus",
+#            "startle response",
+#            "regulation of synaptic vesicle exocytosis",
+#            "negative regulation of synaptic transmission",
+#            
+#            "sensory perception of sound",
+#            "regulation of axonogenesis",
+#            
+#            "positive regulation of Wnt signaling pathway",
+#            
+#            "MAPK cascade",
+#            
+#            
+#            "synapse organization",
+#            "long-term synaptic potentiation",
+#            "positive regulation of axonogenesis",
+#            
+#            "regulation of synaptic transmission, glutamatergic",
+#            "positive regulation of endocytosis",
+#            
+#            "calcium-ion regulated exocytosis",
+#            "SMAD protein signal transduction",
+#            
+#            "dopaminergic neuron differentiation",
+#            "positive regulation of neuron projection development")
+# 
+# res1_bp_down_sub <- res1_bp_down[res1_bp_down$Term %in% Terms, ]
+# res1_bp_down_sub$exp <- "KO_vs_WT_Down"
+# 
+# res2_bp_down_sub <- res2_bp_down[res2_bp_down$Term %in% Terms, ]
+# res2_bp_down_sub$exp <- "WTm7oe_vs_WT_Down"
+# 
+# res3_bp_down_sub <- res3_bp_down[res3_bp_down$Term %in% Terms, ]
+# res3_bp_down_sub$exp <- "KOm7oe_vs_KO_Down"
+# 
+# res4_bp_down_sub <- res4_bp_down[res4_bp_down$Term %in% Terms, ]
+# res4_bp_down_sub$exp <- "KOm7oe_vs_WT_Down"
+# 
+# res1_bp_up_sub <- res1_bp_up[res1_bp_up$Term %in% c(Terms), ]
+# res1_bp_up_sub$exp <- "KO_vs_WT_Up"
+# 
+# res2_bp_up_sub <- res2_bp_up[res2_bp_up$Term %in% c(Terms), ]
+# res2_bp_up_sub$exp <- "WTm7oe_vs_WT_Up"
+# 
+# res3_bp_up_sub <- res3_bp_up[res3_bp_up$Term %in% Terms, ]
+# res3_bp_up_sub$exp <- "KOm7oe_vs_KO_Up"
+# 
+# res4_bp_up_sub <- res4_bp_up[res4_bp_up$Term %in% Terms, ]
+# res4_bp_up_sub$exp <- "KOm7oe_vs_WT_Up"
+# 
+# 
+# 
+# GO.df <- rbind(res1_bp_down_sub,
+#            res2_bp_down_sub, 
+#            res3_bp_down_sub,
+#            res4_bp_down_sub, 
+#            res1_bp_up_sub,
+#            res2_bp_up_sub,
+#            res3_bp_up_sub,
+#            res4_bp_up_sub)
+# 
+# 
+# GO.df <- GO.df %>% dplyr::select(Term, Annotated, Significant, p.value_elim, exp)
+# 
+# GO.df$ratio <- GO.df$Significant / GO.df$Annotated
+# 
+# GO.df$exp <- factor(GO.df$exp, levels = c("KO_vs_WT_Up", "KO_vs_WT_Down",
+#                                           "WTm7oe_vs_WT_Up", "WTm7oe_vs_WT_Down",
+#                                           "KOm7oe_vs_KO_Up", "KOm7oe_vs_KO_Down",
+#                                           "KOm7oe_vs_WT_Up", "KOm7oe_vs_WT_Down"))
+# 
+# GO.df$p.value_elim <- as.numeric(GO.df$p.value_elim)
+# GO.df$p.value_elim <- -log10(GO.df$p.value_elim)
+# GO.df$Term <- factor(GO.df$Term, levels = rev(unique(GO.df$Term)))
+# 
+# GO.df[15, ]$Term <- "synapse organization"
+# GO.df[15, ]$p.value_elim <- 0
+# GO.df[15, ]$ratio <- 0
+# 
+# GO.df[16, ]$Term <- "synapse organization"
+# GO.df[16, ]$p.value_elim <- 0
+# GO.df[16, ]$ratio <- 0
+# 
+# GO.df$Term <- factor(GO.df$Term, levels = rev(c("sensory perception of mechanical stimulus",
+#            "startle response",
+#            "regulation of synaptic vesicle exocytosis",
+#            "negative regulation of synaptic transmission",
+#            
+#            "sensory perception of sound",
+#            "regulation of axonogenesis",
+#            
+#            "positive regulation of Wnt signaling pathway",
+#            
+#            "MAPK cascade",
+#            
+#            
+#            "synapse organization",
+#            "long-term synaptic potentiation",
+#            "positive regulation of axonogenesis",
+#            
+#            "regulation of synaptic transmission, glutamatergic",
+#            "positive regulation of endocytosis",
+#            
+#            "calcium-ion regulated exocytosis",
+#            "SMAD protein signal transduction",
+#             "dopaminergic neuron differentiation",
+#            "positive regulation of neuron projection development")))
+```
+
+# GO figures
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+# g1 <- ggplot(GO.df, aes(x=exp,
+#                y=Term,
+#                colour=p.value_elim,
+#                size=ratio)) +
+#         geom_point() +
+#         expand_limits(x=0) +
+#         labs(x="Expected", y="GO term", colour="-log10(p-value)", size="gene ratio") +
+#   theme_minimal() + theme(axis.title = element_blank(),
+#                           axis.text.y =  element_text(size = 10, color = "black"),
+#                           axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5, color = "black")) +
+#   scale_color_gradientn("-log10(p-value)", colours = c(paletteer_d("ggsci::amber_material"))) + 
+#   guides(color = guide_colourbar(order = 1), size = guide_legend(order = 2))
+# 
+# 
+# g1 
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+# Terms <- c("startle response",
+#            "regulation of synaptic vesicle exocytosis",
+#            "SMAD protein signal transduction",
+#            "regulation of axonogenesis",
+#            "positive regulation of Wnt signaling pathway",
+#            "calcium-ion regulated exocytosis",
+#            "receptor-mediated endocytosis")
+# 
+# 
+# extract_genes <- function(term = "startle response"){
+#   
+#   final_genes <- c()
+#   GO <- c(list)
+#   GO[[1]] <- res1_bp_down
+#   GO[[2]] <- res1_bp_down
+#   GO[[3]] <- res3_bp_down
+#   GO[[4]] <- res4_bp_down
+#   GO[[5]] <- res1_bp_up
+#   GO[[6]] <- res2_bp_up
+#   GO[[7]] <- res3_bp_up
+#   GO[[8]] <- res4_bp_up
+#   
+#   for(i in c(1:8)){
+#   genes1 <- GO[[i]][GO[[i]]$Term %in% term, ]$genes 
+#   genes1 <- unlist(strsplit(genes1, ","))
+#   genes1 <- str_squish(genes1)
+#   final_genes <- c(final_genes, genes1)
+#   
+#   }
+# 
+#   return(final_genes)
+# }
+# gene1 <- extract_genes(term = Terms[1])
+# gene2 <- extract_genes(term = Terms[2])
+# gene3 <- extract_genes(term = Terms[3])
+# gene4 <- extract_genes(term = Terms[4])
+# gene5 <- extract_genes(term = Terms[5])
+# gene6 <- extract_genes(term = Terms[6])
+# gene7 <- extract_genes(term = Terms[7])
+# 
+# 
+# 
+# ```
+# 
+# ```{r warning=FALSE, message=FALSE, fig.height=8, fig.width=10}
+# ZS.df <- apply(cor_mat, 1, function(x) (x - mean(x)) / sd(x))
+# ZS.df <- data.frame(t(ZS.df))
+# ZS.df$gene <- rownames(ZS.df)
+# 
+# 
+# ZS.df <- ZS.df %>% mutate(GO = case_when(gene %in% gene1 ~ Terms[1],
+#                                          gene %in% gene2 ~ "regulation of \nsynaptic vesicle \nexocytosis",
+#                                          gene %in% gene3 ~ Terms[3],
+#                                          gene %in% gene4 ~ Terms[4],
+#                                          gene %in% gene5 ~ "positive regulation of \nWnt signaling pathway",
+#                                          gene %in% gene6 ~ "calcium-ion \nregulated exocytosis" ,
+#                                          gene %in% gene7 ~ Terms[7]))
+# 
+# ZS.df <- ZS.df[!is.na(ZS.df$GO), ]
+# 
+# ZS.df2 <- tidyr::gather(ZS.df, sample, z_score, "WTC1":"KOm7oe4")
+# 
+# ZS.df2 <- ZS.df2 %>% mutate(exp = case_when(sample %in% c("WTC1", "WTC2", "WTC3") ~ "WT",
+#                                             sample %in% c("WTm7oe1", "WTm7oe2", "WTm7oe3") ~ "WTm7oe",
+#                                             sample %in% c("KOC1", "KOC2", "KOC3", "KOC4") ~ "KO",
+#                                             sample %in% c("KOm7oe1", "KOm7oe2", "KOm7oe3", "KOm7oe4") ~ "KOm7oe"))
+# 
+# ZS.df2$exp <- factor(ZS.df2$exp, levels = c("WT", "WTm7oe", "KO", "KOm7oe"))
+# 
+# ZS.df2$GO <- factor(ZS.df2$GO, levels = c(Terms[[1]],"regulation of \nsynaptic vesicle \nexocytosis","positive regulation of \nWnt signaling pathway", Terms[[7]],
+#                                           Terms[[3]], Terms[[4]], "calcium-ion \nregulated exocytosis"))
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=20}
+# g1 <- ggplot(data = ZS.df2, mapping = aes(x = sample, y = gene, fill = z_score)) +
+#   geom_tile() + 
+#   #scale_x_discrete(expand = c(0,0)) + 
+#   scale_y_discrete(position = "right",  expand = c(0,0))  + coord_flip() +  theme_classic() + theme(plot.title = element_text(size = 15, hjust = 0.5), 
+#                                         axis.title.y = element_blank(),
+#                                          axis.title.x = element_blank(),
+#                                          axis.text.y = element_blank(),
+#                                          axis.text.x = element_text(angle = 90, vjust = 11.5, size = 12, color = "black"),
+#                                          #axis.text.y = element_text(size = 12, color = "black"),
+#                                          axis.line = element_line(color = "white"),
+#                                          axis.ticks = element_line(color = "white"),
+#                                          legend.title = element_text(size = 11, color = "black"),
+#                                          legend.text = element_text(size = 11, color = "black"),
+#                                          panel.spacing.x = unit(0, "lines"), 
+#                                         panel.spacing.y = unit(0, "lines"), 
+#                                         panel.margin= unit(c(0), "lines"), 
+#                                         plot.margin = margin(0, 0, 0, 0, "cm"),
+#                                         strip.background = element_blank(),
+#                                         strip.text.x = element_text(size = 10)) + 
+#   #scale_fill_gradientn("expression", colours = c("#003366", "#FFCC66", "#990000"), limits = c(-1, 1), oob=squish) +
+#   scale_fill_gradientn("z-score", colours = c(rev(paletteer_d("ggsci::light_blue_material")), paletteer_d("ggsci::orange_material")), limits = c(-1.5, 1.5), oob=squish) +
+#   #scale_fill_gradientn(colours = cols, limits = c(-2, 2), oob=squish) + 
+#   facet_grid(exp ~ GO, scales = "free", space = "free", switch = 'x')
+# g1
+
+# ggsave(filename = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/201911_m7_overexpression/publication_codes_figures/GO_figures_heatmap.pdf",
+#        plot = g1,
+#        scale = 1, width = 20, height = 6, units = "in", device = cairo_pdf,
+#        dpi = 300)
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.height=6, fig.width=20}
+sessionInfo()
+```
