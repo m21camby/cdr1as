@@ -1,0 +1,47 @@
+import glob
+
+#SAMPLES, = glob_wildcards("/data/rajewsky/sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/{sample}_R1_001.fastq.gz")
+SAMPLES = ["WTC1_S1", "WTC2_S3", "WTC3_S5", "WTC4_S7", "WTC5_S9"]
+
+print(SAMPLES)
+print(len(SAMPLES))
+
+rule all:
+     input: expand('{sample}Unmapped_R1.fastq', sample=SAMPLES)
+
+rule star_mapping:
+     input: 
+          fastq = "/data/rajewsky/sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/{sample}_R1_001.fastq.gz"
+
+     output:
+          out = "{sample}Unmapped.out.mate1"
+
+     params:
+          prefix = "{sample}",
+          genome = "/data/rajewsky/indices/mm10_GRCm38.p6_star_2.7.0a",
+          gtf = "/data/rajewsky/annotation/GRCm38/M21/GRCm38.M21.gtf"
+
+     shell:
+          """
+          STAR \
+          --runThreadN 24 \
+          --genomeDir {params.genome} \
+          --readFilesIn {input.fastq} \
+          --outFileNamePrefix {params.prefix} \
+          --sjdbGTFfile {params.gtf} \
+          --outReadsUnmapped Fastx  \
+          --outSAMtype BAM Unsorted \
+          --readFilesCommand zcat
+          """
+
+rule unmapped_to_fastq:
+     input:
+          mate1 = "{sample}Unmapped.out.mate1",
+
+     output:
+          fastq1 = "{sample}Unmapped_R1.fastq",
+
+     shell:
+          """
+          mv {input.mate1} {output.fastq1}
+          """

@@ -1,21 +1,5 @@
 # Small RNA-seq analyses for Cledi sample definition YAML file
-#
-# Copyright (C) 2019  Marcel Schilling
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public
-# License along with this program.  If not, see
-# <http://www.gnu.org/licenses/>.
-
+# Copyright: Marcel Schilling adjust with Seung 
 
 #######################
 # general information #
@@ -24,17 +8,8 @@
 # file:        samples.yaml
 # created:     2019-02-07
 # last update: 2019-09-24
-# author:      Marcel Schilling <marcel.schilling@mdc-berlin.de>
+# author:      Marcel Schilling
 # purpose:     define samples for pipeline analyzing sRNA-seq data for Cledi
-
-
-######################################
-# change log (reverse chronological) #
-######################################
-
-# 2019-09-24: adjusted for new data with Seung
-# 2019-02-07: added Monika's cortex samples (positive control)
-#             initial version (refactored from Snakefile)
 
 
 ###########
