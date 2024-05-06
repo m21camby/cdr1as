@@ -7,7 +7,8 @@ This project is to understand 'Cdr1as' and 'miR-7' in mouse neurons
 * Paper: [here](https://www.biorxiv.org/content/10.1101/2023.01.26.525729v1)
 
 
-![Alt text]("https://www.biorxiv.org/content/biorxiv/early/2023/01/26/2023.01.26.525729/F7.large.jpg")
+<img src="https://www.biorxiv.org/content/biorxiv/early/2023/01/26/2023.01.26.525729/F7.large.jpg">
+
 
 
 ### Structure
