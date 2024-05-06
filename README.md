@@ -36,15 +36,16 @@
 * Check read distribution: `read_distribution.py -r mm10_RefSeq.bed -i WTC1_S1sorted_Aligned.out.bam` 
 
 * Mapping: 
-		```
-                STAR --runThreadN 24
-	     	 --genomeDir /mm10_GRCm38.p6_star_2.7.0a\
-		 --readFilesIn /sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/WTC1_S1_R1_001.fastq.gz\
-		 --outFileNamePrefix WTC1_S1_quant\
-		 --sjdbGTFfile /annotation/GRCm38/M21/GRCm38.M21.gtf\
- 		 --readFilesCommand zcat\
-		 --quantMode GeneCounts &
-		```
+```
+STAR --runThreadN 24
+--genomeDir /mm10_GRCm38.p6_star_2.7.0a
+--readFilesIn /sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/WTC1_S1_R1_001.fastq.gz
+--outFileNamePrefix WTC1_S1_quant
+--sjdbGTFfile /annotation/GRCm38/M21/GRCm38.M21.gtf
+--readFilesCommand zcat
+--quantMode GeneCounts &
+```
+
 
 
  
