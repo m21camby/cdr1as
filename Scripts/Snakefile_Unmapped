@@ -1,3 +1,6 @@
+# Extract Unmapped reads from fastq
+
+
 import glob
 
 #SAMPLES, = glob_wildcards("/data/rajewsky/sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/{sample}_R1_001.fastq.gz")

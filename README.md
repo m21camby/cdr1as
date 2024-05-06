@@ -26,7 +26,7 @@
 * `srna` = small RNA analysis codes used in the paper
 
 
-## 4. Ppreprocess 
+## 4. Preprocessing 
 * The sequencing had been done by NextSeq500 from single-end PolyA selected libraries (1x150) 
 
 * Extract miR-7 targets gene lists: `cut -f1 TargetScan7.1__miR-7-5p.predicted_targets.txt | sed '1d' > TargetScan7.1__miR-7-5p.predicted_targets_lists.txt` 

@@ -1,8 +1,10 @@
 #!/bin/bash
 
+
+# Run findcirc2 from unmapped reads
 # SP081_045_S9_L002_R2_001.fastq.gz
 # SP081_046_S10_L002_R2_001.fastq.gz
-/data/rajewsky/sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/{sample}_R1_001.fastq.gz
+#/data/rajewsky/sequencing/mouse/191031_NB501326_0339_AHCM7WBGXC/fastq/{sample}_R1_001.fastq.gz
 
 
 for i in KOC1_S11 KOC2_S13 KOC3_S15 KOC4_S17 KOC5_S19 

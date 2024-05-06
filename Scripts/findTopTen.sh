@@ -18,12 +18,12 @@ awk '(NR%4==2)' $ARG'Unmapped_R1.fastq' | awk '{A[$1]++}END{for(i in A)print i,A
 
 # 2. For rRNA mapped reads
 
-#for i in {241..248}
-#	do
-#		echo Top ten suspected mycoplasma read by $i >> TopTenUnmappedReads.txt 
-#		awk '{A[$1]++}END{for(i in A)print i,A[i]}' NR_$i'_rRNA_mapped.fasta' |sort -k 2,2 -r|head -10 >> TopTenUnmappedReads.txt 
-#	
-#	done
+for i in {241..248}
+	do
+		echo Top ten suspected mycoplasma read by $i >> TopTenUnmappedReads.txt 
+		awk '{A[$1]++}END{for(i in A)print i,A[i]}' NR_$i'_rRNA_mapped.fasta' |sort -k 2,2 -r|head -10 >> TopTenUnmappedReads.txt 
+	
+	done
 
 
 
