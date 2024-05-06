@@ -6,5 +6,10 @@ This project is to understand 'Cdr1as' and 'miR-7' in mouse neurons
 * processed data is available from NCBI GEO under accession: GSE224184
 * Paper: [here](https://www.biorxiv.org/content/10.1101/2023.01.26.525729v1)
 
+
+<img src="https://www.biorxiv.org/content/biorxiv/early/2023/01/26/2023.01.26.525729/F7.large.jpg" width="300" height="300" \>
+
+### Structure
+
  
 
