@@ -1,15 +1,16 @@
+# This file is to convert TF matrix uniprot ID to gene name 
+# ref: https://m.ensembl.org/info/data/biomart/biomart_r_package.html
 
 library("biomaRt")
 library(stringr)
 
-# ref: https://m.ensembl.org/info/data/biomart/biomart_r_package.html
 
+# load data
 
 TF_matrix <- read.csv("/data/rajewsky/home/skim/Neuronal_Activity_Cledi/TF_database/TF_target_matrix.txt", sep = "\t", row.names = 2)
 TF_matrix$X <- NULL
 uniprots <- str_replace(colnames(TF_matrix), ".txt", "") 
 colnames(TF_matrix) <- uniprots
-#test <- TF_matrix[c(1:10),c(1:10)]
 
 
 #################################### 
@@ -187,5 +188,4 @@ TF_matrix_final$ensembl_gene_id <- NULL
 
 saveRDS(TF_matrix_final, file = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/TF_database/20200420_TF_matrix_uniprot_gene_name_Final_matrix.rda")
 
-# TF_matrix_final <- readRDS(file = "/data/rajewsky/home/skim/Neuronal_Activity_Cledi/TF_database/20200420_TF_matrix_uniprot_gene_name_Final_matrix.rda")
 

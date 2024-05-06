@@ -1,3 +1,6 @@
+# ciRcus tutorial to annotate circular RNAs from findcirc2
+
+
 library(ciRcus)
 library(plyr)
 library(dplyr)
