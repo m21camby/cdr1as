@@ -46,7 +46,14 @@ STAR --runThreadN 24
 --quantMode GeneCounts &
 ```
 
-
-
+* Mir-7 sequences from BAM file
+```
+samtools index WTm7oex4_S8sorted_Aligned.out.bam # index
+samtools view -b WTm7oex4_S8sorted_Aligned.out.bam chr13:58392779-58392886 > WTm7oex4_S8sorted_Aligned.out_chr13.bam # extract
+samtools view WTm7oex4_S8sorted_Aligned.out_chr13.bam |awk '$4 == 58392779 {print $1 }' > WTm7oex4_S8_Mir7_ID.txt &
+filterbyname.sh in=fastq/WTm7oex4_S8_R1_001.fastq out=WTm7oex4_S8_R1_001_Mir7.fastq names=WTm7oex4_S8_Mir7_ID.txt include=t & # using bbmap
+```
  
+
+
 
